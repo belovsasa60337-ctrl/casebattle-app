@@ -2,12 +2,23 @@ plugins { id 'com.android.application' }
 android {
     namespace 'com.sdre.casebattle'
     compileSdk 34
+    signingConfigs {
+        fixed {
+            storeFile file('casebattle.jks')
+            storePassword 'casebattle'
+            keyAlias 'casebattle'
+            keyPassword 'casebattle'
+        }
+    }
     defaultConfig {
         applicationId "com.sdre.casebattle"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode((System.getenv('GITHUB_RUN_NUMBER') ?: '1') as Integer)
+        versionName "1." + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.fixed }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

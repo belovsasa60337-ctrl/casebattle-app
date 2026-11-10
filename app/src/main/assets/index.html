@@ -277,6 +277,10 @@ input[type=range]{width:100%;accent-color:var(--acc);padding:0;margin-top:8px}
 .mchips{overflow-x:auto;justify-content:flex-start;scrollbar-width:none}.mchips::-webkit-scrollbar{display:none}
 .mchip{flex:0 0 auto}
 html,body{overflow-x:hidden}
+.btn.steam{background:linear-gradient(135deg,#1b2838,#2a475e);color:#fff;border:1px solid #66c0f4;box-shadow:0 6px 20px #66c0f430}
+.btn.steam .ic{margin-right:6px}
+.steamtag{background:#1b2838;border:1px solid #66c0f4;border-radius:9px;padding:5px 10px;font-size:13px;color:#c7d5e0}
+.steamtag a{color:#66c0f4}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -485,8 +489,12 @@ function prepDB(){
 /* ================= СОХРАНЕНИЕ ================= */
 const DEF={bal:500,reg:false,avimg:'',nick:'Игрок',av:0,avc:0,xp:0,uid:1,inv:[],hist:[],daily:0,sound:true,fast:false,
  st:{opened:0,bp:0,bw:0,up:0,uw:0,ct:0,wag:0,won:0,best:null}};
-let S;try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem(SKEY)||'{}'));S.st=Object.assign({},DEF.st,S.st||{})}catch(e){S=JSON.parse(JSON.stringify(DEF))}
-function save(){try{localStorage.setItem(SKEY,JSON.stringify(S))}catch(e){}updHead()}
+let CUR='';try{CUR=localStorage.getItem('cb_cur')||''}catch(e){}
+const skey=()=>CUR?'cb_acc_'+CUR:SKEY;
+let S;
+function loadS(){try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem(skey())||'{}'));S.st=Object.assign({},DEF.st,S.st||{})}catch(e){S=JSON.parse(JSON.stringify(DEF))}}
+loadS();
+function save(){try{localStorage.setItem(skey(),JSON.stringify(S))}catch(e){}updHead()}
 const lvl=()=>Math.floor(Math.sqrt(S.xp/500))+1;
 const lvlXP=l=>(l-1)*(l-1)*500;
 function spend(v){const l0=lvl();S.bal-=v;S.xp+=v;S.st.wag+=v;save();return l0}
@@ -875,7 +883,7 @@ function pageProfile(){
  const l=lvl(),a=lvlXP(l),b=lvlXP(l+1),st=S.st;
  main.innerHTML=`<div class="panel"><div class="prof"><div class="bigav" id="pav" style="background:${AVC[S.avc%AVC.length]}" title="Нажми, чтобы поставить фото">${myAv()}<span class="avedit">${ic('cam')}</span></div>
  <div style="flex:1;min-width:220px"><div class="row"><input id="pnick" value="${esc(S.nick)}" maxlength="16" style="font-size:20px;font-weight:700;max-width:240px"><span class="lvl">Уровень ${l}</span></div>
- <div class="xpbar"><div style="width:${Math.min(100,(S.xp-a)/(b-a)*100)}%"></div></div><div class="mut" style="font-size:12px;margin-top:4px">${Math.floor(S.xp-a)} / ${b-a} XP · за каждый уровень бонус</div></div>
+ <div class="row" style="margin-top:8px">${S.steam?`<span class="steamtag">${ic('steam')} Steam: <a href="https://steamcommunity.com/profiles/${S.steam}">${S.steam}</a></span><button class="btn sm ghost" id="sout">Выйти</button>`:`<button class="btn sm steam" id="sin">${ic('steam')} Войти через Steam</button>`}</div><div class="xpbar"><div style="width:${Math.min(100,(S.xp-a)/(b-a)*100)}%"></div></div><div class="mut" style="font-size:12px;margin-top:4px">${Math.floor(S.xp-a)} / ${b-a} XP · за каждый уровень бонус</div></div>
  <div style="text-align:right"><div class="mut">Баланс</div><div style="font-size:28px;font-weight:900;color:var(--acc)">${fmt(S.bal)}</div><div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn sm" onclick="bonusModal()">Бонус</button><button class="btn sm ghost" id="pcol">Цвет фона</button>${S.avimg?'<button class="btn sm ghost" id="pdel">Убрать фото</button>':''}</div></div></div>
  <div class="stats">
   <div class="stat"><span>Открыто кейсов</span><b>${st.opened}</b></div>
@@ -891,7 +899,8 @@ function pageProfile(){
  <div class="igrid" id="pinv"></div>
  <h2>История дропа</h2><div class="hist">${S.hist.slice(0,30).map(h=>`<div class="hl" style="--rc:${h.c}"><img src="${esc(h.i||GUN)}" loading="lazy" onerror="imgErr(this)"><div class="t">${h.st?'<b class="stt">StatTrak™</b> ':''}${esc(h.n)} <span class="mut">(${h.w})</span></div><b style="color:var(--acc)">${fmt(h.p)}</b></div>`).join('')||'<div class="empty">Пока ничего</div>'}</div>
  <div class="row" style="margin-top:30px"><button class="btn ghost sm" id="reload">Обновить базу кейсов</button><button class="btn ghost sm" id="reset" style="color:var(--bad)">Сбросить прогресс</button></div>`;
- $('#pav').onclick=()=>pickAvatar(d=>{S.avimg=d;save();toast('Аватар обновлён','good');pageProfile()});{const pd=$('#pdel');if(pd)pd.onclick=()=>{S.avimg='';save();pageProfile()}}
+ $('#pav').onclick=()=>pickAvatar(d=>{S.avimg=d;S.avOwn=true;save();toast('Аватар обновлён','good');pageProfile()});{const pd=$('#pdel');if(pd)pd.onclick=()=>{S.avimg='';S.avOwn=false;save();pageProfile()}}
+ {const a=$('#sin');if(a)a.onclick=steamLogin;const b=$('#sout');if(b)b.onclick=steamLogout}
  $('#pcol').onclick=()=>{S.avc=(S.avc+1)%AVC.length;save();pageProfile()};
   $('#pnick').onchange=e=>{S.nick=e.target.value.trim().slice(0,16)||'Игрок';save();if(!S.avimg)pageProfile()};
  $('#isort').value=invSort;$('#isort').onchange=e=>{invSort=e.target.value;drawInv()};
@@ -902,7 +911,7 @@ function pageProfile(){
  $('#sellall').onclick=()=>openModal(`<h2 style="margin:0 0 10px">Продать весь инвентарь?</h2><p class="mut">${S.inv.length} предметов за ${fmt(invSum())}</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn red" id="cfs">Продать</button></div>`)||($('#cfs').onclick=()=>{const s=sellU(S.inv.map(i=>i.u));toast('+'+fmt(s),'good');closeModal();pageProfile()});
  $('#sellch').onclick=()=>{const u=S.inv.filter(i=>i.p<100).map(i=>i.u);if(!u.length){toast('Нет таких скинов');return}const s=sellU(u);toast(`Продано ${u.length} шт. +${fmt(s)}`,'good');pageProfile()};
  $('#reload').onclick=async()=>{toast('Обновляю базу…');const db=await loadRemote();if(db){try{localStorage.setItem(DBKEY,JSON.stringify(db))}catch(e){}DB=db;prepDB();toast(`Готово: ${DB.cases.length} кейсов`,'good')}else toast('Не удалось загрузить','bad')};
- $('#reset').onclick=()=>openModal(`<h2 style="margin:0 0 10px">Сбросить весь прогресс?</h2><p class="mut">Баланс, инвентарь и статистика удалятся.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn red" id="cfr">Сбросить</button></div>`)||($('#cfr').onclick=()=>{S=JSON.parse(JSON.stringify(DEF));S.bal=startBal();save();closeModal();pageProfile();regModal()})}
+ $('#reset').onclick=()=>openModal(`<h2 style="margin:0 0 10px">Сбросить весь прогресс?</h2><p class="mut">Баланс, инвентарь и статистика удалятся.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn red" id="cfr">Сбросить</button></div>`)||($('#cfr').onclick=()=>{const st=S.steam,nk=S.nick,av=S.avimg;S=JSON.parse(JSON.stringify(DEF));S.bal=startBal();if(st){S.steam=st;S.nick=nk;S.avimg=av;S.reg=true}save();closeModal();pageProfile();if(!S.reg)regModal()})}
 
 const startBal=()=>Math.min(DEF.bal,Math.max(...DB.all.map(c=>c.price)));
 /* ================= АВАТАР / РЕГИСТРАЦИЯ ================= */
@@ -911,14 +920,28 @@ const myAv=()=>S.avimg?`<img src="${S.avimg}" alt="">`:initial(S.nick);
 function pickAvatar(cb){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
  inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const N=160,cv=document.createElement('canvas');cv.width=cv.height=N;const k=Math.min(im.width,im.height);
   cv.getContext('2d').drawImage(im,(im.width-k)/2,(im.height-k)/2,k,k,0,0,N,N);cb(cv.toDataURL('image/jpeg',.85))};im.onerror=()=>toast('Не удалось открыть картинку','bad');im.src=r.result};r.readAsDataURL(f)};inp.click()}
+const IS_APP=!!window.Android;
+function steamLogin(){if(busy){toast('Дождись окончания игры','bad');return}
+ if(!IS_APP){openModal(`<h2 style="margin:0 0 8px">Вход через Steam</h2><p class="mut">Вход через Steam работает в приложении CaseBattle (APK). Там кнопка откроет официальную страницу Steam — входишь или подтверждаешь вход в мобильном Steam, и тебя возвращает в игру.</p><div class="row" style="justify-content:flex-end"><button class="btn" id="sok">Понятно</button></div>`,true);$('#sok').onclick=()=>S.reg?closeModal():regModal();return}
+ toast('Открываю Steam…');try{window.Android.steamLogin()}catch(e){toast('Не удалось открыть Steam','bad')}}
+window.steamDone=o=>{closeModal();
+ let saved=null;try{saved=localStorage.getItem('cb_acc_'+o.id)}catch(e){}
+ const guest=!CUR?S:null;CUR=o.id;try{localStorage.setItem('cb_cur',CUR)}catch(e){}
+ if(saved){loadS();toast(`С возвращением, ${o.name}!`,'good')}
+ else{if(guest&&guest.reg){S=guest;try{localStorage.removeItem(SKEY)}catch(e){}toast('Steam привязан, прогресс перенесён','good')}else{S=JSON.parse(JSON.stringify(DEF));S.bal=startBal();toast(`Добро пожаловать, ${o.name}!`,'good')}}
+ S.steam=o.id;S.nick=(o.name||S.nick).slice(0,16);if(o.avatar&&!S.avOwn)S.avimg=o.avatar;S.reg=true;save();winS();go('profile')};
+window.steamFail=m=>{toast(m==='cancel'?'Вход через Steam отменён':'Не удалось войти через Steam','bad');if(!S.reg)regModal()};
+function steamLogout(){if(busy)return;CUR='';try{localStorage.setItem('cb_cur','')}catch(e){}loadS();save();toast('Вы вышли из аккаунта');go('cases');if(!S.reg)regModal()}
 function regModal(){let img=S.avimg||'';
- openModal(`<div style="text-align:center"><div class="logo" style="font-size:28px">CASE<b>//</b>BATTLE</div><p class="mut" style="margin:6px 0 16px">Создай профиль</p>
+ openModal(`<div style="text-align:center"><div class="logo" style="font-size:28px">CASE<b>//</b>BATTLE</div><p class="mut" style="margin:6px 0 16px">Войди через Steam или создай гостевой профиль</p></div>
+ <button class="btn steam big" id="rst" style="width:100%">${ic('steam')} Войти через Steam</button>
+ <div class="mut" style="text-align:center;margin:14px 0;font-size:13px">— или гостевой профиль —</div><div style="text-align:center">
  <div class="bigav regav" id="rav" style="background:${AVC[S.avc%AVC.length]};margin:0 auto">${img?`<img src="${img}">`:'+'}</div><div class="mut" style="font-size:12px;margin:8px 0 14px">Нажми, чтобы поставить своё фото</div></div>
  <div class="field"><label>Никнейм</label><input id="rn" maxlength="16" placeholder="Твой ник" value="${S.nick==='Игрок'?'':esc(S.nick)}"></div>
  <button class="btn big" id="rgo" style="width:100%;margin-top:6px">Создать профиль</button>
  <p class="mut" style="font-size:12px;text-align:center;margin-bottom:0">Стартовый баланс — ${fmt(startBal())}</p>`,true);
- $('#mbody').style.maxWidth='420px';
- $('#rav').onclick=()=>pickAvatar(d=>{img=d;$('#rav').innerHTML=`<img src="${d}">`});
+ $('#mbody').style.maxWidth='420px';$('#rst').onclick=steamLogin;
+ $('#rav').onclick=()=>pickAvatar(d=>{img=d;S.avOwn=true;$('#rav').innerHTML=`<img src="${d}">`});
  $('#rgo').onclick=()=>{const n=$('#rn').value.trim();if(n.length<2){toast('Ник минимум 2 символа','bad');return}S.nick=n.slice(0,16);S.avimg=img;if(!S.reg&&!S.st.wag)S.bal=startBal();S.reg=true;save();closeModal();$('#mbody').style.maxWidth='';toast(`Добро пожаловать, ${S.nick}!`,'good');if(PAGE==='profile')pageProfile()}}
 
 /* ================= СТАРТ ================= */
