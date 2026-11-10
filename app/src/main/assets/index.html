@@ -359,10 +359,10 @@ const SOURCES=[
 const DBKEY='cb_db_v3', SKEY='cb_save_v1';
 const TIERS={consumer:['Ширпотреб','#b0c3d9'],industrial:['Промышленное','#5e98d9'],milspec:['Армейское','#4b69ff'],restricted:['Запрещённое','#8847ff'],classified:['Засекреченное','#d32ce6'],covert:['Тайное','#eb4b4b'],rare:['★ Редкий особый','#e4ae39']};
 const TORD=['rare','covert','classified','restricted','milspec','industrial','consumer'];
-const TW={consumer:80,industrial:80,milspec:79.92,restricted:15.98,classified:3.2,covert:.64,rare:.26};
+const TW={consumer:60,industrial:60,milspec:52,restricted:26,classified:13,covert:6.5,rare:2.5};
 const PR={consumer:[3,25],industrial:[5,60],milspec:[8,120],restricted:[60,550],classified:[300,2800],covert:[1200,14000],rare:[7000,110000]};
 const BOOST=[[/Karambit/,1.9],[/Butterfly/,2],[/M9 Bayonet/,1.6],[/Talon/,1.4],[/Skeleton/,1.5],[/Sport Gloves|Specialist Gloves/,1.5],[/Doppler|Fade|Lore|Emerald|Sapphire|Ruby/,1.6],[/Crimson Web|Slaughter|Case Hardened/,1.3],[/Asiimov|Fire Serpent|Hyper Beast|Vulcan|Neo-Noir|Printstream|Wild Lotus|Gungnir|Medusa/,1.6],[/Safari Mesh|Boreal Forest|Scorched|Urban Masked|Forest DDPAT/,.55]];
-const WEARS=[['FN','Прямо с завода',0,.07,.12,1.45],['MW','Немного поношенное',.07,.15,.24,1.15],['FT','После полевых испытаний',.15,.38,.36,1],['WW','Поношенное',.38,.45,.12,.85],['BS','Закалённое в боях',.45,1,.16,.72]];
+const WEARS=[['FN','Прямо с завода',0,.07,.2,1.45],['MW','Немного поношенное',.07,.15,.28,1.15],['FT','После полевых испытаний',.15,.38,.3,1],['WW','Поношенное',.38,.45,.1,.85],['BS','Закалённое в боях',.45,1,.12,.72]];
 const GUN="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120"><path fill="#3a4160" d="M10 50h120l10-10h40v14h10v10h-60l-8 8h-20l-6 30H76l6-30H40l-6 14H18l4-22H10z"/></svg>');
 const STAR="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c98b12"/></linearGradient></defs><path fill="url(#g)" d="M50 6l13 29 31 3-24 21 7 31-27-16-27 16 7-31L6 38l31-3z"/></svg>');
 const AVS=['😎','🤠','👽','🤖','🦊','🐺','🐯','💀','🥷','👑','🐸','🦁'];
@@ -470,17 +470,17 @@ function buildCustom(){
  const out=[];
  for(const[id,n,cat,bn,f,b,pool,a]of defs){if(pool.length<3)continue;
   let w;if(a==='half'){const ch=pool.filter(i=>DB.skins[i].t!=='covert'),cv=pool.filter(i=>DB.skins[i].t==='covert');if(!cv.length||!ch.length)continue;w=pool.map(i=>DB.skins[i].t==='covert'?.5/cv.length:.5/ch.length)}
-  else{w=pool.map(i=>Math.pow(P(i),-a));const s=w.reduce((x,y)=>x+y,0);w=w.map(x=>x/s)}
-  const ev=pool.reduce((s,i,k)=>s+w[k]*P(i),0)*1.027*1.06;
+  else{w=pool.map(i=>Math.pow(P(i),-a*.55));const s=w.reduce((x,y)=>x+y,0);w=w.map(x=>x/s)}
+  const ev=pool.reduce((s,i,k)=>s+w[k]*P(i),0)*1.083*1.1;
   const base=DB.cases.find(x=>x.n===bn)||DB.cases[out.length%DB.cases.length]||{};
-  out.push({id,n,cat,i:base.i||'',f,b,d:'',custom:true,pool:pool.map((i,k)=>({i,w:w[k]})).sort((x,y)=>P(y.i)-P(x.i)),price:Math.max(5,Math.ceil(ev*1.1/5)*5)})}
+  out.push({id,n,cat,i:base.i||'',f,b,d:'',custom:true,pool:pool.map((i,k)=>({i,w:w[k]})).sort((x,y)=>P(y.i)-P(x.i)),price:Math.max(5,Math.ceil(ev*1.04/5)*5)})}
  return out}
 function pickPool(c){let r=Math.random(),a=0;for(const p of c.pool){a+=p.w;if(r<a)return DB.skins[p.i]}return DB.skins[c.pool[0].i]}
 function prepDB(){
  DB.byId={};DB.cases.forEach(c=>{DB.byId[c.id]=c;const g={};c.items.forEach(i=>{const t=DB.skins[i].t;(g[t]=g[t]||[]).push(i)});if(c.rare.length)g.rare=(g.rare||[]).concat(c.rare);
   let tot=0;for(const t in g)tot+=TW[t];c.g=g;c.tp={};let ev=0;
   for(const t in g){c.tp[t]=TW[t]/tot;const avg=g[t].reduce((a,i)=>a+DB.skins[i].p,0)/g[t].length;ev+=c.tp[t]*avg}
-  c.price=Math.max(25,Math.ceil(ev*1.027*1.06*1.12/5)*5)});
+  c.price=Math.max(25,Math.ceil(ev*1.083*1.1*1.04/5)*5)});
  DB.targets=DB.skins.map(s=>s).sort((a,b)=>a.p-b.p);
  DB.newest=new Set(DB.cases.slice(0,3).map(c=>c.id));
  DB.custom=buildCustom();DB.custom.forEach(c=>DB.byId[c.id]=c);DB.all=[...DB.custom,...DB.cases];
@@ -518,7 +518,7 @@ $('#modal').addEventListener('click',e=>{if(e.target.id==='modal'&&!MLOCK)closeM
 function itemCard(it,extra='',cls=''){const[w,s]=splitName(it.n);
  return `<div class="icard ${cls}" style="--rc:${it.c}" data-u="${it.u||''}"><div class="itop"><span class="wear">${it.st?'<b class="stt">ST</b> ':''}${it.w||''}</span><span class="ip">${it.p!=null?fmt(it.p):''}</span></div><img src="${esc(it.i||GUN)}" loading="lazy" onerror="imgErr(this)"><div class="iw">${esc(w)}</div><div class="is">${esc(s)}</div>${extra}</div>`}
 function makeItem(s,wk,vis){let W;if(wk)W=WEARS.find(w=>w[0]===wk);else{let r=Math.random(),a=0;for(const w of WEARS){a+=w[4];if(r<a){W=w;break}}W=W||WEARS[2]}
- const st=!wk&&canST(s.n)&&Math.random()<.1;
+ const st=!wk&&canST(s.n)&&Math.random()<.15;
  return{u:vis?0:S.uid++,n:s.n,i:s.i,c:s.c,t:s.t,w:W[0],f:+(W[2]+Math.random()*(W[3]-W[2])).toFixed(4),st,p:Math.max(1,Math.round(s.p*W[5]*(st?1.7:1)))}}
 function pickTier(c){let r=Math.random(),a=0;for(const t of TORD){if(!c.tp[t])continue;a+=c.tp[t];if(r<a)return t}return Object.keys(c.tp)[0]}
 function rollCase(c,vis){if(c.pool)return makeItem(pickPool(c),null,vis);const t=pickTier(c),arr=c.g[t];return makeItem(DB.skins[arr[Math.random()*arr.length|0]],null,vis)}
@@ -677,7 +677,7 @@ function pageUpgrade(){
  <div class="ulists"><div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Ваши скины <span class="mut">(до 6)</span></b><span class="mut" id="usum"></span></div><div class="igrid" id="uinv"></div></div>
  <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Цель</b><input id="uq" placeholder="Поиск скина…" style="flex:1;max-width:240px"></div><div class="igrid" id="utg"></div></div></div>`;
  const sum=()=>S.inv.filter(i=>UP.sel.includes(i.u)).reduce((a,b)=>a+b.p,0);
- const chance=()=>UP.target&&UP.sel.length?Math.min(.8,Math.max(.01,sum()/UP.target.p*.92)):0;
+ const chance=()=>UP.target&&UP.sel.length?Math.min(.8,Math.max(.01,sum()/UP.target.p*.96)):0;
  const drawInv=()=>{$('#uinv').innerHTML=S.inv.length?S.inv.map(it=>itemCard(it,'',(UP.sel.includes(it.u)?'sel ':'')+'click')).join(''):'<div class="empty" style="grid-column:1/-1">Пусто. Открой кейсы!</div>';
   $$('#uinv .icard').forEach(e=>e.onclick=()=>{if(busy)return;const u=+e.dataset.u;if(UP.sel.includes(u))UP.sel=UP.sel.filter(x=>x!==u);else{if(UP.sel.length>=6){toast('Максимум 6 скинов','bad');return}UP.sel.push(u)}if(UP.target&&UP.target.p<=sum())UP.target=null;drawAll()})};
  const drawTg=()=>{const q=$('#uq').value.toLowerCase();const s=sum();const list=DB.targets.filter(t=>t.p>s&&t.n.toLowerCase().includes(q)).slice(0,150);
@@ -723,7 +723,7 @@ function pageContract(){
   $('#cres').innerHTML=`<div style="display:flex;gap:6px">${S.inv.filter(i=>CT.sel.includes(i.u)).slice(0,5).map(i=>itemCard(i,'','shuffle')).join('')}</div>`;beep(400,.3,'sine',.05);
   await sleep(1600);
   const z=(()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)})();
-  const m=Math.min(5,Math.max(.25,Math.exp(-.33+.62*z)));const goal=s*m;
+  const m=Math.min(5,Math.max(.25,Math.exp(-.15+.62*z)));const goal=s*m;
   const T=DB.targets;let lo=0,hi=T.length-1;while(lo<hi){const mid=(lo+hi)>>1;if(T[mid].p<goal)lo=mid+1;else hi=mid}
   const pool=T.slice(Math.max(0,lo-3),lo+3);const sk=rnd(pool);const it=makeItem(sk,'FT');
   S.inv=S.inv.filter(i=>!CT.sel.includes(i.u));CT.sel=[];addInv([it]);pushTicker(it,S.nick);
