@@ -4,6 +4,7 @@
     <application
         android:label="CASE//BATTLE"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Black.NoTitleBar">
         <activity
