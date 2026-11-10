@@ -235,43 +235,51 @@ input[type=range]{width:100%;accent-color:var(--acc);padding:0;margin-top:8px}
 @keyframes boom{30%{transform:scale(1.2)}}
 .shake{animation:shake .45s}
 @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
-.tower{display:flex;flex-direction:column;gap:7px;max-width:460px;margin:auto}
-.trow{display:flex;gap:8px;align-items:center;opacity:.55;transition:.2s}
-.trow.act{opacity:1}.trow.pass{opacity:.85}
-.trow.act .tcells{box-shadow:0 0 0 2px var(--acc);border-radius:12px}
-.tcells{flex:1;display:grid;grid-template-columns:repeat(var(--n),1fr);gap:6px;padding:3px}
-.tcell{height:46px;border-radius:10px;border:1px solid #2d3450;background:linear-gradient(180deg,#232a40,#161a28);box-shadow:inset 0 -4px 0 #0b0d14}
-.tcell span{display:grid;place-items:center;height:100%}.tcell svg{height:70%}
-.tcell:not(:disabled):hover{border-color:var(--acc)}
-.tcell.gem{background:linear-gradient(180deg,#3ddc8440,#16a34a30);border-color:var(--good);box-shadow:none}
-.tcell.bomb{background:linear-gradient(180deg,#ff4d5e55,#d61f3a40);border-color:var(--bad);box-shadow:none}
-.tcell.dim{opacity:.45}
-.tmul{width:62px;text-align:right;font-weight:700;font-size:13px;color:var(--acc)}
-.cfside{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.cfside button{padding:14px;border-radius:12px;font-weight:900;font-size:20px;color:#fff;border:2px solid transparent;opacity:.5}
-.cfside .t{background:linear-gradient(135deg,#e8a33d,#a35a12)}.cfside .ct{background:linear-gradient(135deg,#5b7cff,#2a3fa8)}
-.cfside button.on{opacity:1;border-color:#fff}
-.coinst{perspective:900px;height:240px;display:grid;place-items:center}
-.coin{width:170px;height:170px;position:relative;transform-style:preserve-3d}
-.cface{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;font-size:56px;font-weight:900;color:#fff;backface-visibility:hidden;box-shadow:inset 0 0 0 10px #ffffff30,0 10px 40px #000a}
-.cface.t{background:radial-gradient(circle at 35% 30%,#ffc46b,#a35a12)}
-.cface.ct{background:radial-gradient(circle at 35% 30%,#8ea6ff,#2a3fa8);transform:rotateY(180deg)}
+.rlhead{display:flex;justify-content:space-between;align-items:center;margin:8px 0 10px;flex-wrap:wrap;gap:8px}
+.rlstats{display:flex;gap:6px;align-items:center;font-size:13px}
+.rlwrap{position:relative}
+.rlvp{position:relative;overflow:hidden;height:120px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(180deg,#0d1018,#06070c)}
+.rlvp .track{display:flex;height:100%;will-change:transform}
+.rlvp::before,.rlvp::after{content:'';position:absolute;top:0;bottom:0;width:15%;z-index:2;pointer-events:none}
+.rlvp::before{left:0;background:linear-gradient(90deg,#06070c,transparent)}.rlvp::after{right:0;background:linear-gradient(-90deg,#06070c,transparent)}
+.rt{flex:0 0 90px;height:100%;padding:14px 4px}
+.rt div{height:100%;border-radius:14px;display:grid;place-items:center;font-size:28px;font-weight:900;color:#fff;box-shadow:inset 0 -5px 0 #0004,inset 0 2px 0 #fff3}
+.rt .red{background:linear-gradient(180deg,#ff5f6d,#c8203a)}
+.rt .blk{background:linear-gradient(180deg,#363c55,#1a1e2d)}
+.rt .grn{background:linear-gradient(180deg,#4be38f,#16a34a)}
+.rlvp .mark{position:absolute;left:50%;top:0;bottom:0;width:4px;background:var(--acc);z-index:3;transform:translateX(-2px);box-shadow:0 0 16px var(--acc)}
+.rlvp .mark::before,.rlvp .mark::after{content:'';position:absolute;left:50%;transform:translateX(-50%);border:9px solid transparent}
+.rlvp .mark::before{top:0;border-top-color:var(--acc)}.rlvp .mark::after{bottom:0;border-bottom-color:var(--acc)}
+.rltimer{position:absolute;inset:0;z-index:4;background:#06070ccc;backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;transition:opacity .3s}
+.rltimer i{position:absolute;left:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .1s linear}
+.rlh{margin:10px 0}
+.rball{display:inline-grid;place-items:center;min-width:28px;height:28px;padding:0 6px;border-radius:50%;font-size:12px;font-weight:900;color:#fff}
+.rball.red{background:#e0384b}.rball.blk{background:#2a2f45}.rball.grn{background:#22b45e}
+.rlbet{padding:12px}
+.rlamt{display:flex;gap:10px;flex-wrap:wrap}.rlamt input{width:150px;font-weight:700}.rlamt .qb{flex:1;min-width:280px}
+.rlcols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.rlcol{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:10px;transition:.3s;min-width:0}
+.rlcol.won{border-color:var(--good);box-shadow:0 0 30px #3ddc8433}.rlcol.lost{opacity:.4}
+.rlbtn{width:100%;border:0;border-radius:12px;padding:14px;color:#fff;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:15px;transition:.15s;box-shadow:inset 0 -4px 0 #0004}
+.rlbtn:hover{filter:brightness(1.15);transform:translateY(-2px)}
+.rlbtn.red{background:linear-gradient(135deg,#ff5f6d,#c8203a)}.rlbtn.blk{background:linear-gradient(135deg,#3a4160,#1a1e2d)}.rlbtn.grn{background:linear-gradient(135deg,#4be38f,#16a34a)}
+.rlbtn b{background:#0003;padding:3px 8px;border-radius:8px}
+.rltot{display:flex;justify-content:space-between;padding:10px 4px;font-size:13px;color:var(--mut);border-bottom:1px solid var(--line)}
+.rltot b{color:var(--txt)}
+.rllist{display:flex;flex-direction:column;gap:4px;margin-top:8px;max-height:260px;overflow:auto}
+.rlrow{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:9px;font-size:13px;animation:drop .3s}
+.rlrow.me{background:#ffb02e1a;border:1px solid #ffb02e55}
+.rlrow span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rlrow b{color:var(--acc);white-space:nowrap}
+.av.sm{width:26px;height:26px;border-radius:8px;font-size:13px}
+@media(max-width:700px){.rlcols{grid-template-columns:1fr}.rlamt input{width:100%}.rlamt .qb{min-width:0;width:100%}.rllist{max-height:150px}}
+.two>*,.ulists>*,.upstage>*,.cols>*{min-width:0}
+.mchips{overflow-x:auto;justify-content:flex-start;scrollbar-width:none}.mchips::-webkit-scrollbar{display:none}
+.mchip{flex:0 0 auto}
+html,body{overflow-x:hidden}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
-.rlvp{position:relative;overflow:hidden;height:96px;border-radius:14px;border:1px solid var(--line);background:#06070c}
-.rlvp .track{display:flex;height:100%;will-change:transform}
-.rt{flex:0 0 auto;height:100%;padding:8px 4px}
-.rt div{height:100%;border-radius:12px;display:grid;place-items:center;font-size:26px;font-weight:900}
-.rt .red{background:linear-gradient(180deg,#ff4d5e,#b3192f)}
-.rt .blk{background:linear-gradient(180deg,#2c3145,#151826)}
-.rt .grn{background:linear-gradient(180deg,#3ddc84,#15803d)}
-.rlvp .mark{position:absolute;left:50%;top:0;bottom:0;width:3px;background:var(--acc);z-index:2;transform:translateX(-1.5px);box-shadow:0 0 14px var(--acc)}
-.rbets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
-.rbet{border-radius:14px;padding:14px;text-align:center;border:1px solid var(--line);cursor:pointer;transition:.15s}
-.rbet:hover{transform:translateY(-2px)}
-.rbet.red{background:#ff4d5e22}.rbet.grn{background:#3ddc8422}.rbet.blk{background:#2c314566}
-.rbet b{display:block;font-size:18px}
 .mgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-width:440px;margin:auto}
 .mcell{aspect-ratio:1;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,#1c2131,#141826);font-size:28px;display:grid;place-items:center;transition:.15s}
 .mcell:hover:not(:disabled){border-color:var(--acc);transform:translateY(-2px)}
@@ -322,8 +330,6 @@ input[type=range]{width:100%;accent-color:var(--acc);padding:0;margin-top:8px}
    <button data-p="contract"><svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>Контракт</button>
    <button data-p="crash"><svg class="ic" viewBox="0 0 24 24"><path d="M3 18l6-6 4 4 8-9"/><path d="M15 7h6v6"/></svg>Краш</button>
    <button data-p="roulette"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/></svg>Рулетка</button>
-   <button data-p="tower"><svg class="ic" viewBox="0 0 24 24"><path d="M6 21V8l6-5 6 5v13M6 13h12M6 17h12M10 21v-4h4v4"/></svg>Башня</button>
-   <button data-p="coin"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/></svg>Монетка</button>
    <button data-p="mines"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="14" r="7"/><path d="M15.5 9.5l2.5-2.5M18 7l1.5-2.5M20.5 5.5l1 1"/></svg>Мины</button>
   </nav>
   <div class="hr">
@@ -540,7 +546,7 @@ function levelCheck(l0){const l=lvl();if(l>l0){const b=l*150;S.bal+=b;save();toa
 
 /* ================= НАВИГАЦИЯ ================= */
 function go(p,arg){if(busy){toast('Дождись окончания игры','bad');return}PAGE=p;$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p||(p==='case'&&b.dataset.p==='cases')));window.scrollTo(0,0);
- ({cases:pageCases,case:pageCase,battles:pageBattles,upgrade:pageUpgrade,contract:pageContract,crash:pageCrash,roulette:pageRoulette,mines:pageMines,tower:pageTower,coin:pageCoin,profile:pageProfile})[p](arg)}
+ ({cases:pageCases,case:pageCase,battles:pageBattles,upgrade:pageUpgrade,contract:pageContract,crash:pageCrash,roulette:pageRoulette,mines:pageMines,profile:pageProfile})[p](arg)}
 $$('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.p));
 $('#sndBtn').onclick=()=>{S.sound=!S.sound;save()};
 $('#bonusBtn').onclick=bonusModal;
@@ -785,30 +791,48 @@ function bindQuick(id){$$(`#${id}~.qb button, #${id}+.qb button`).forEach(b=>b.o
  if(q==='h')v=Math.floor(v/2);else if(q==='d')v*=2;else if(q==='max')v=Math.floor(S.bal);else v+=+q;i.value=Math.max(1,Math.min(Math.floor(S.bal)||1,v))})}
 
 /* ================= РУЛЕТКА ================= */
-const RL={hist:[],bets:{red:0,grn:0,blk:0},pos:0};
 const RORD=[0,1,14,2,13,3,12,4,11,5,10,6,9,7,8];
 const rcol=n=>n===0?'grn':n<=7?'red':'blk';
+const RNAME={red:'Красное',grn:'Зелёное',blk:'Чёрное'},RMUL={red:2,grn:14,blk:2};
+const RL={hist:[],last:0,phase:'bet',end:0,bets:{red:[],grn:[],blk:[]},loop:null,amt:50};
+function rlNewRound(){RL.phase='bet';RL.end=Date.now()+12000;RL.bets={red:[],grn:[],blk:[]};RL.bot=[...BOTS].sort(()=>Math.random()-.5).slice(0,6+Math.random()*6|0).map(n=>({n,t:Date.now()+Math.random()*10500}))}
 function pageRoulette(){
- const tiles=n=>`<div class="rt" style="width:90px"><div class="${rcol(n)}">${n}</div></div>`;
- main.innerHTML=`<div class="hero"><div class="gl">${ic('roulette')}</div><h1>Рулетка</h1><p>Красное / чёрное — x2, зелёное (0) — x14.</p></div>
- <div class="chips" id="rh"></div><div class="rlvp" id="rvp"><div class="track" id="rtr">${Array.from({length:6},()=>RORD.map(tiles).join('')).join('')}</div><div class="mark"></div></div>
- <div class="row" style="margin-top:14px"><input id="rb" type="number" min="1" value="100" style="width:140px"><div class="qb" style="width:260px"><button data-q="h">½</button><button data-q="d">×2</button><button data-q="10">+10</button><button data-q="100">+100</button><button data-q="max">MAX</button></div></div>
- <div class="rbets"><div class="rbet red" data-c="red"><b>Красное x2</b><span id="rbred">0 ₽</span></div><div class="rbet grn" data-c="grn"><b>Зелёное x14</b><span id="rbgrn">0 ₽</span></div><div class="rbet blk" data-c="blk"><b>Чёрное x2</b><span id="rbblk">0 ₽</span></div></div>
- <div class="row" style="margin-top:14px;justify-content:center"><button class="btn ghost" id="rclr">Убрать ставки</button><button class="btn big" id="rgo">Крутить</button></div>`;
- const qb=$('#rb').parentElement.querySelectorAll('.qb button');qb.forEach(b=>b.onclick=()=>{const i=$('#rb');let v=+i.value||0;const q=b.dataset.q;if(q==='h')v=Math.floor(v/2);else if(q==='d')v*=2;else if(q==='max')v=Math.floor(S.bal);else v+=+q;i.value=Math.max(1,v)});
- const hist=()=>{$('#rh').innerHTML=RL.hist.map(n=>`<span class="chip" style="background:${n===0?'#3ddc84':n<=7?'#ff4d5e':'#2c3145'};color:#fff">${n}</span>`).join('')||'<span class="mut">Нет истории</span>'};hist();
- const db=()=>['red','grn','blk'].forEach(c=>$('#rb'+c).textContent=fmt(RL.bets[c]));db();
- const tr=$('#rtr'),vp=$('#rvp');const center=()=>{tr.style.transition='none';tr.style.transform=`translate3d(${-(15*90+RORD.indexOf(RL.pos)*90+45-vp.clientWidth/2)}px,0,0)`};center();
- $$('.rbet').forEach(e=>e.onclick=()=>{if(busy)return;const v=Math.floor(+$('#rb').value);if(!(v>0))return;const tot=RL.bets.red+RL.bets.grn+RL.bets.blk;if(tot+v>S.bal){toast('Недостаточно средств','bad');return}RL.bets[e.dataset.c]+=v;beep(900,.04,'triangle',.05);db()});
- $('#rclr').onclick=()=>{if(busy)return;RL.bets={red:0,grn:0,blk:0};db()};
- $('#rgo').onclick=async()=>{if(busy)return;const tot=RL.bets.red+RL.bets.grn+RL.bets.blk;if(!tot){toast('Сделайте ставку','bad');return}if(tot>S.bal){toast('Недостаточно средств','bad');return}
-  busy=true;const l0=spend(tot);$('#rgo').disabled=true;const n=Math.random()*15|0;
-  const html=Array.from({length:8},()=>RORD.map(tiles).join('')).join('');const idx=15*6+RORD.indexOf(n);
-  await spin(tr,vp,html,idx,{size:90,dur:5500});
-  const c=rcol(n);const win=RL.bets[c]*(c==='grn'?14:2);
-  if(win){earn(win);bump();winS();toast(`Выпало ${n}! +${fmt(win)}`,'good')}else{loseS();toast(`Выпало ${n}. Мимо…`,'bad')}
-  RL.pos=n;RL.hist.unshift(n);RL.hist=RL.hist.slice(0,20);hist();RL.bets={red:0,grn:0,blk:0};db();
-  await sleep(300);center();busy=false;$('#rgo').disabled=false;levelCheck(l0)}}
+ const tile=n=>`<div class="rt"><div class="${rcol(n)}">${n}</div></div>`;
+ main.innerHTML=`<div class="rlhead"><h2 style="margin:0">Рулетка</h2><div class="rlstats" id="rls"></div></div>
+ <div class="rlwrap"><div class="rlvp" id="rvp"><div class="track" id="rtr"></div><div class="mark"></div><div class="rltimer" id="rlt"><span id="rltx"></span><i id="rlbar"></i></div></div></div>
+ <div class="chips rlh" id="rh"></div>
+ <div class="panel rlbet"><div class="rlamt"><input id="rb" type="number" min="1" value="${RL.amt}"><div class="qb"><button data-q="clr">Сброс</button><button data-q="10">+10</button><button data-q="100">+100</button><button data-q="1000">+1000</button><button data-q="h">½</button><button data-q="d">×2</button><button data-q="max">MAX</button></div></div></div>
+ <div class="rlcols">${['red','grn','blk'].map(c=>`<div class="rlcol ${c}" id="rc_${c}"><button class="rlbtn ${c}" data-c="${c}"><span>${RNAME[c]}</span><b>x${RMUL[c]}</b></button><div class="rltot"><span id="rn_${c}">0 ставок</span><b id="rs_${c}">0 ₽</b></div><div class="rllist" id="rlist_${c}"></div></div>`).join('')}</div>`;
+ const tr=$('#rtr'),vp=$('#rvp');
+ const strip=()=>Array.from({length:8},()=>RORD.map(tile).join('')).join('');
+ const center=()=>{tr.style.transition='none';tr.innerHTML=strip();tr.style.transform=`translate3d(${-(15*90+RORD.indexOf(RL.last)*90+45-vp.clientWidth/2)}px,0,0)`};center();
+ const hist=()=>{$('#rh').innerHTML=RL.hist.slice(0,15).map(n=>`<span class="rball ${rcol(n)}">${n}</span>`).join('')||'<span class="mut">История пуста</span>';
+  const h=RL.hist.slice(0,100),cnt=c=>h.filter(n=>rcol(n)===c).length;
+  $('#rls').innerHTML=h.length?`<span class="mut">Последние ${h.length}:</span><span class="rball red">${cnt('red')}</span><span class="rball grn">${cnt('grn')}</span><span class="rball blk">${cnt('blk')}</span>`:''};hist();
+ const drawBets=()=>['red','grn','blk'].forEach(c=>{const L=RL.bets[c].slice().sort((a,b)=>b.a-a.a);$('#rn_'+c).textContent=`${L.length} ${L.length===1?'ставка':L.length<5&&L.length?'ставки':'ставок'}`;$('#rs_'+c).textContent=fmt(L.reduce((s,x)=>s+x.a,0));
+  $('#rlist_'+c).innerHTML=L.map(b=>`<div class="rlrow ${b.me?'me':''}"><div class="av sm" style="background:${b.col}">${b.av}</div><span>${esc(b.n)}</span><b>${fmt(b.a)}</b></div>`).join('')});
+ drawBets();
+ const inp=$('#rb');inp.oninput=()=>RL.amt=Math.max(1,Math.floor(+inp.value)||1);
+ $$('.rlamt .qb button').forEach(b=>b.onclick=()=>{let v=+inp.value||0;const q=b.dataset.q;if(q==='clr')v=1;else if(q==='h')v=Math.floor(v/2);else if(q==='d')v*=2;else if(q==='max')v=Math.floor(S.bal);else v+=+q;inp.value=RL.amt=Math.max(1,v)});
+ $$('.rlbtn').forEach(b=>b.onclick=()=>{if(RL.phase!=='bet'){toast('Ставки закрыты, ждём следующий раунд','bad');return}const v=Math.floor(+inp.value);if(!(v>0))return;if(v>S.bal){toast('Недостаточно средств','bad');return}
+  const c=b.dataset.c;const first=!['red','grn','blk'].some(k=>RL.bets[k].some(x=>x.me));const l=spend(v);if(first)RL.l0=l;
+  const ex=RL.bets[c].find(x=>x.me);if(ex)ex.a+=v;else RL.bets[c].push({n:S.nick,av:myAv(),col:AVC[S.avc%AVC.length],a:v,me:true});
+  busy=true;bump();beep(900,.04,'triangle',.05);drawBets()});
+ const finish=n=>{const c=rcol(n);RL.last=n;RL.hist.unshift(n);RL.hist=RL.hist.slice(0,100);hist();
+  ['red','grn','blk'].forEach(k=>$('#rc_'+k).classList.add(k===c?'won':'lost'));
+  const mine=RL.bets[c].find(x=>x.me),had=['red','grn','blk'].some(k=>RL.bets[k].some(x=>x.me));
+  if(mine){const w=mine.a*RMUL[c];earn(w);bump();winS();toast(`Выпало ${n}! +${fmt(w)}`,'good')}else if(had){loseS();toast(`Выпало ${n} — мимо`,'bad')}
+  if(had){busy=false;const l=RL.l0;RL.l0=undefined;levelCheck(l)}};
+ const step=async()=>{if(PAGE!=='roulette'){clearInterval(RL.loop);RL.loop=null;return}
+  const now=Date.now();
+  if(RL.phase==='bet'){const left=Math.max(0,RL.end-now);$('#rltx').textContent=`Крутим через ${(left/1000).toFixed(1)}`;$('#rlbar').style.width=(left/12000*100)+'%';$('#rlt').style.opacity=1;
+   RL.bot.filter(b=>!b.done&&b.t<=now).forEach(b=>{b.done=1;const c=Math.random()<.07?'grn':Math.random()<.5?'red':'blk';RL.bets[c].push({n:b.n,av:initial(b.n),col:rnd(AVC),a:rnd([10,25,50,100,150,250,500,1000,2500])});drawBets()});
+   if(left<=0){RL.phase='spin';$('#rlt').style.opacity=0;const n=Math.random()*15|0;
+    await spin(tr,vp,strip(),15*6+RORD.indexOf(n),{size:90,dur:6000});
+    if(PAGE!=='roulette')return;finish(n);RL.phase='done';RL.end=Date.now()+2500}}
+  else if(RL.phase==='done'&&now>=RL.end){['red','grn','blk'].forEach(k=>$('#rc_'+k).classList.remove('won','lost'));rlNewRound();drawBets();center()}};
+ if(RL.phase!=='bet'||RL.end<Date.now())rlNewRound();
+ clearInterval(RL.loop);RL.loop=setInterval(step,100);step()}
 
 /* ================= МИНЫ ================= */
 const MN={on:false,m:3,profit:0};
@@ -844,65 +868,6 @@ function pageMines(){
  $$('.mcell').forEach(c=>c.onclick=()=>openCell(c));
  $('#mrand').onclick=()=>{const free=$$('.mcell').filter(c=>!c.classList.contains('open'));if(free.length)openCell(rnd(free))};
  chips()}
-
-/* ================= БАШНЯ ================= */
-const TW_={on:false,diff:1};
-const TDIFF=[['Лёгкая',4,1],['Средняя',3,1],['Сложная',2,1],['Безумная',3,2]];
-function pageTower(){
- const ROWS=8;
- main.innerHTML=`<div class="two"><div class="panel"><h2 style="margin-top:0">Башня</h2>
- <div class="field"><label>Ставка</label><input id="tb" type="number" min="1" value="50"><div class="qb"><button data-q="h">½</button><button data-q="d">×2</button><button data-q="10">+10</button><button data-q="100">+100</button><button data-q="max">MAX</button></div></div>
- <div class="field"><label>Сложность</label><div class="seg" id="td" style="width:100%;display:grid;grid-template-columns:1fr 1fr">${TDIFF.map((d,i)=>`<button data-i="${i}" class="${i===TW_.diff?'on':''}" style="flex:1">${d[0]}</button>`).join('')}</div></div>
- <div class="mwin"><div><span>Текущий выигрыш</span><b id="tcur">—</b></div><div><span>Этаж</span><b id="tfl">0 / ${ROWS}</b></div></div>
- <button class="btn big" id="tgo" style="width:100%">Начать подъём</button>
- <p class="mut" style="font-size:12px">Поднимайся по этажам, выбирая безопасную плитку. Забери выигрыш в любой момент.</p></div>
- <div class="panel"><div class="tower" id="tw"></div></div></div>`;
- bindQuick('tb');
- const mult=k=>{const[_,n,b]=TDIFF[TW_.diff];return Math.pow(n/(n-b),k)*.97};
- const draw=()=>{const[_,n]=TDIFF[TW_.diff];let h='';for(let r=ROWS-1;r>=0;r--){const act=TW_.on&&r===TW_.row;
-  h+=`<div class="trow ${act?'act':''} ${TW_.on&&r<TW_.row?'pass':''}"><div class="tcells" style="--n:${n}">${Array.from({length:n},(_,c)=>`<button class="tcell" data-r="${r}" data-c="${c}" ${act?'':'disabled'}><span></span></button>`).join('')}</div><div class="tmul">x${mult(r+1).toFixed(2)}</div></div>`}
-  $('#tw').innerHTML=h;$$('.tcell').forEach(b=>b.onclick=()=>pick(b))};
- const cellAt=(r,c)=>$(`.tcell[data-r="${r}"][data-c="${c}"]`);
- const info=()=>{$('#tfl').textContent=`${TW_.row} / ${ROWS}`;$('#tcur').textContent=TW_.row?fmt(TW_.bet*mult(TW_.row))+` (x${mult(TW_.row).toFixed(2)})`:'—';
-  $('#tgo').textContent=TW_.row?`Забрать ${fmt(TW_.bet*mult(TW_.row))}`:'Выбери плитку';$('#tgo').disabled=!TW_.row};
- const reveal=()=>{for(let r=0;r<ROWS;r++)TW_.map[r].forEach((bad,c)=>{const e=cellAt(r,c);if(e&&!e.classList.contains('open')){e.classList.add('open','dim',bad?'bomb':'gem');e.querySelector('span').innerHTML=bad?BOMB:GEM}})};
- const end=()=>{TW_.on=false;busy=false;$$('.tcell').forEach(b=>b.disabled=true);reveal();$('#tgo').disabled=false;$('#tgo').className='btn big';$('#tgo').textContent='Играть снова';$$('#td button').forEach(b=>b.disabled=false);levelCheck(TW_.l0)};
- function pick(b){if(!TW_.on)return;const r=+b.dataset.r,c=+b.dataset.c;if(r!==TW_.row)return;
-  $$(`.tcell[data-r="${r}"]`).forEach(x=>x.disabled=true);b.classList.add('open');
-  if(TW_.map[r][c]){b.classList.add('bomb','boom');b.querySelector('span').innerHTML=BOMB;beep(110,.5,'sawtooth',.09);toast('Плитка обрушилась!','bad');end();return}
-  b.classList.add('gem');b.querySelector('span').innerHTML=GEM;TW_.map[r].forEach((bad,cc)=>{const e=cellAt(r,cc);if(cc!==c){e.classList.add('open','dim',bad?'bomb':'gem');e.querySelector('span').innerHTML=bad?BOMB:GEM}});
-  TW_.row++;beep(600+TW_.row*80,.1,'triangle',.06);
-  $$('.trow').forEach(x=>x.classList.remove('act'));
-  if(TW_.row>=ROWS){info();$('#tgo').click();return}
-  const nr=$$('.trow')[ROWS-1-TW_.row];nr.classList.add('act');nr.querySelectorAll('.tcell').forEach(x=>x.disabled=false);nr.scrollIntoView({block:'nearest'});info()}
- $$('#td button').forEach(b=>b.onclick=()=>{if(TW_.on)return;TW_.diff=+b.dataset.i;$$('#td button').forEach(x=>x.classList.toggle('on',x===b));draw()});
- $('#tgo').onclick=()=>{
-  if(TW_.on){const w=Math.floor(TW_.bet*mult(TW_.row));earn(w);bump();winS();toast(`+${fmt(w)}`,'good');end();return}
-  const bet=Math.floor(+$('#tb').value);if(!(bet>0))return;if(bet>S.bal){toast('Недостаточно средств','bad');return}
-  const[_,n,bb]=TDIFF[TW_.diff];const l0=spend(bet);busy=true;
-  TW_.map=Array.from({length:ROWS},()=>{const a=Array(n).fill(false);let k=0;while(k<bb){const j=Math.random()*n|0;if(!a[j]){a[j]=true;k++}}return a});
-  Object.assign(TW_,{on:true,bet,row:0,l0});$$('#td button').forEach(b=>b.disabled=true);draw();$('#tgo').className='btn big green';info()};
- draw()}
-
-/* ================= МОНЕТКА ================= */
-const CF={side:'t',rot:0,hist:[]};
-function pageCoin(){
- main.innerHTML=`<div class="two"><div class="panel"><h2 style="margin-top:0">Монетка</h2>
- <div class="field"><label>Ставка</label><input id="fb" type="number" min="1" value="50"><div class="qb"><button data-q="h">½</button><button data-q="d">×2</button><button data-q="10">+10</button><button data-q="100">+100</button><button data-q="max">MAX</button></div></div>
- <div class="field"><label>Твоя сторона</label><div class="cfside"><button data-s="t" class="t ${CF.side==='t'?'on':''}">T</button><button data-s="ct" class="ct ${CF.side==='ct'?'on':''}">CT</button></div></div>
- <button class="btn big" id="fgo" style="width:100%">Подбросить · x1.96</button></div>
- <div class="panel" style="text-align:center"><div class="chips" id="fh" style="justify-content:center"></div><div class="coinst"><div class="coin" id="coin"><div class="cface t">T</div><div class="cface ct">CT</div></div></div><div id="fres" class="mut" style="font-size:18px;font-weight:700;min-height:26px"></div></div></div>`;
- bindQuick('fb');
- const hist=()=>$('#fh').innerHTML=CF.hist.map(s=>`<span class="chip" style="background:${s==='t'?'#d9822b':'#4b69ff'};color:#fff">${s==='t'?'T':'CT'}</span>`).join('')||'<span class="mut">История пуста</span>';hist();
- const coin=$('#coin');coin.style.transition='none';coin.style.transform=`rotateY(${CF.rot}deg)`;
- $$('.cfside button').forEach(b=>b.onclick=()=>{if(busy)return;CF.side=b.dataset.s;$$('.cfside button').forEach(x=>x.classList.toggle('on',x===b))});
- $('#fgo').onclick=async()=>{if(busy)return;const bet=Math.floor(+$('#fb').value);if(!(bet>0))return;if(bet>S.bal){toast('Недостаточно средств','bad');return}
-  busy=true;$('#fgo').disabled=true;const l0=spend(bet);const res=Math.random()<.5?'t':'ct';$('#fres').textContent='';
-  const base=CF.rot-CF.rot%360;CF.rot=base+360*8+(res==='t'?0:180);coin.style.transition='transform 2.4s cubic-bezier(.2,.7,.2,1)';coin.style.transform=`rotateY(${CF.rot}deg)`;
-  for(let i=0;i<10;i++)setTimeout(()=>beep(900+i*40,.02,'square',.02),i*180);
-  await sleep(2500);const win=res===CF.side;
-  if(win){const w=Math.floor(bet*1.96);earn(w);bump();winS();$('#fres').innerHTML=`<span style="color:var(--good)">Победа! +${fmt(w)}</span>`}else{loseS();$('#fres').innerHTML=`<span style="color:var(--bad)">Выпало ${res==='t'?'T':'CT'}</span>`}
-  CF.hist.unshift(res);CF.hist=CF.hist.slice(0,20);hist();busy=false;$('#fgo').disabled=false;levelCheck(l0)}}
 
 /* ================= ПРОФИЛЬ ================= */
 let invSort='new';
