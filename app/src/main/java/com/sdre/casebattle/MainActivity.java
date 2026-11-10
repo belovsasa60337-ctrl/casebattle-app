@@ -253,17 +253,37 @@ public class MainActivity extends Activity {
                 if (!res.contains("is_valid:true")) throw new Exception("invalid");
 
                 // Ник и аватар из публичного профиля
-                String name = "Steam_" + id.substring(12), avatar = "";
+                String name = null, avatar = null, why = "";
                 try {
                     String xml = http("https://steamcommunity.com/profiles/" + id + "/?xml=1", null);
-                    Matcher n = Pattern.compile("<steamID><!\\[CDATA\\[(.*?)\\]\\]></steamID>", Pattern.DOTALL).matcher(xml);
-                    if (n.find()) name = n.group(1);
-                    Matcher a = Pattern.compile("<avatarFull><!\\[CDATA\\[(.*?)\\]\\]></avatarFull>", Pattern.DOTALL).matcher(xml);
-                    if (a.find()) avatar = a.group(1);
-                } catch (Exception ignored) {}
+                    name = grab(xml, "<steamID>\\s*(?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?\\s*</steamID>");
+                    avatar = grab(xml, "<avatarFull>\\s*(?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?\\s*</avatarFull>");
+                } catch (Exception e) { why = "xml: " + e.getMessage(); }
+                if (name == null || avatar == null) {
+                    try {
+                        String html = http("https://steamcommunity.com/profiles/" + id + "/", null);
+                        if (name == null) {
+                            String raw = grab(html, "\"personaname\":\"((?:[^\"\\\\]|\\\\.)*)\"");
+                            if (raw != null) name = new JSONObject("{\"v\":\"" + raw + "\"}").getString("v");
+                        }
+                        if (name == null) name = grab(html, "<span class=\"actual_persona_name\">(.*?)</span>");
+                        if (avatar == null) avatar = grab(html, "<link rel=\"image_src\" href=\"(.*?)\"");
+                        if (avatar == null) avatar = grab(html, "playerAvatarAutoSizeInner\">\\s*(?:<img[^>]*>\\s*)*?<img src=\"(.*?)\"");
+                    } catch (Exception e) { why += " html: " + e.getMessage(); }
+                }
+                String avatarData = "";
+                if (avatar != null && avatar.startsWith("http")) {
+                    try { avatarData = "data:image/jpeg;base64," + android.util.Base64.encodeToString(bytes(avatar), android.util.Base64.NO_WRAP); }
+                    catch (Exception e) { avatarData = avatar; }
+                }
+                if (name != null) name = android.text.Html.fromHtml(name, android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim();
 
                 JSONObject o = new JSONObject();
-                o.put("id", id); o.put("name", name); o.put("avatar", avatar);
+                o.put("id", id);
+                o.put("name", name == null || name.isEmpty() ? "Steam_" + id.substring(12) : name);
+                o.put("avatar", avatarData);
+                o.put("profileOk", name != null);
+                o.put("why", why);
                 js = "window.steamDone&&steamDone(" + o.toString() + ")";
             } catch (Exception e) {
                 js = "window.steamFail&&steamFail(" + JSONObject.quote(String.valueOf(e.getMessage())) + ")";
@@ -275,10 +295,32 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    static final String UA = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36";
+
+    private static String grab(String s, String re) {
+        Matcher m = Pattern.compile(re, Pattern.DOTALL).matcher(s);
+        if (!m.find()) return null;
+        String v = m.group(1).trim();
+        return v.isEmpty() ? null : v;
+    }
+
+    private static byte[] bytes(String url) throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setConnectTimeout(15000); c.setReadTimeout(15000);
+        c.setRequestProperty("User-Agent", UA);
+        try (java.io.InputStream in = c.getInputStream(); java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192]; int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            return out.toByteArray();
+        }
+    }
+
     private static String http(String url, String post) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(15000); c.setReadTimeout(15000);
-        c.setRequestProperty("User-Agent", "CaseBattleApp");
+        c.setRequestProperty("User-Agent", UA);
+        c.setRequestProperty("Accept-Language", "ru,en;q=0.8");
+        c.setInstanceFollowRedirects(true);
         if (post != null) {
             c.setRequestMethod("POST"); c.setDoOutput(true);
             c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");

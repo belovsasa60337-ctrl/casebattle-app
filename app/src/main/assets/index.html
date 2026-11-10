@@ -929,7 +929,7 @@ window.steamDone=o=>{closeModal();
  const guest=!CUR?S:null;CUR=o.id;try{localStorage.setItem('cb_cur',CUR)}catch(e){}
  if(saved){loadS();toast(`С возвращением, ${o.name}!`,'good')}
  else{if(guest&&guest.reg){S=guest;try{localStorage.removeItem(SKEY)}catch(e){}toast('Steam привязан, прогресс перенесён','good')}else{S=JSON.parse(JSON.stringify(DEF));S.bal=startBal();toast(`Добро пожаловать, ${o.name}!`,'good')}}
- S.steam=o.id;S.nick=(o.name||S.nick).slice(0,16);if(o.avatar&&!S.avOwn)S.avimg=o.avatar;S.reg=true;save();winS();go('profile')};
+ S.steam=o.id;if(o.name)S.nick=o.name.slice(0,16);if(o.avatar){S.avimg=o.avatar;S.avOwn=false}S.reg=true;save();winS();go('profile');if(!o.profileOk)setTimeout(()=>toast('Не удалось загрузить ник и аватар из Steam — попробуй войти ещё раз','bad'),900)};
 window.steamWait=()=>toast('Проверяю вход в Steam…');
 window.steamFail=m=>{toast(m==='cancel'?'Вход через Steam отменён':'Не удалось войти через Steam','bad');if(!S.reg)regModal()};
 function steamLogout(){if(busy)return;CUR='';try{localStorage.setItem('cb_cur','')}catch(e){}loadS();save();toast('Вы вышли из аккаунта');go('cases');if(!S.reg)regModal()}
