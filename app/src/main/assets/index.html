@@ -414,42 +414,56 @@ function fallbackDB(){
 }
 async function fetchJSON(url){const ac=new AbortController();const to=setTimeout(()=>ac.abort(),20000);try{const r=await fetch(url,{signal:ac.signal});if(!r.ok)throw 0;return await r.json()}finally{clearTimeout(to)}}
 async function loadRemote(){for(const u of SOURCES){try{const j=await fetchJSON(u);if(Array.isArray(j)&&j.length){const db=buildDB(j);if(db.cases.length)return db}}catch(e){}}return null}
-const LOOK={
- x_kop:['Recoil Case','grayscale(.85) brightness(.85) contrast(1.1)','₽'],
- x_stud:['Revolution Case','hue-rotate(160deg) saturate(1.3)','STUD'],
- x_pist:['Clutch Case','hue-rotate(250deg) saturate(1.5)','PISTOL'],
- x_ak:['Kilowatt Case','hue-rotate(290deg) saturate(1.7)','AK-47'],
- x_m4:['Fracture Case','hue-rotate(110deg) saturate(1.4)','M4'],
- x_awp:['Snakebite Case','hue-rotate(80deg) saturate(1.6) brightness(1.05)','AWP'],
- x_5050:['Dreams & Nightmares Case','grayscale(1) contrast(1.4) brightness(1.05)','50/50'],
- x_red:['Prisma 2 Case','sepia(1) saturate(6) hue-rotate(-45deg) brightness(.95)','COVERT'],
- x_glv:['Danger Zone Case','sepia(1) saturate(2.8) hue-rotate(-5deg) brightness(1.05)','GLOVES'],
- x_knf:['Spectrum Case','sepia(1) saturate(4) hue-rotate(5deg) brightness(1.2) contrast(1.05)','★ KNIFE'],
- x_leg:['Chroma Case','sepia(.7) saturate(3.5) hue-rotate(-15deg) brightness(1.35) contrast(1.15)','★ LEGEND']};
+const CATS=['Дешёвые','Оружие','По редкости','Ножи и перчатки','Премиум'];
+const FL={gray:'grayscale(.85) brightness(.85) contrast(1.1)',bw:'grayscale(1) contrast(1.4) brightness(1.05)',red:'sepia(1) saturate(6) hue-rotate(-45deg) brightness(.95)',gold:'sepia(1) saturate(4) hue-rotate(5deg) brightness(1.2) contrast(1.05)',amber:'sepia(1) saturate(2.8) hue-rotate(-5deg) brightness(1.05)',plat:'grayscale(1) brightness(1.5) contrast(1.2)',dark:'brightness(.55) contrast(1.4) saturate(1.4)',neon:'saturate(2.5) contrast(1.2) brightness(1.1)'};
+const hue=(d,s=1.5)=>`hue-rotate(${d}deg) saturate(${s})`;
 const cf=c=>c.f?`filter:${c.f} drop-shadow(0 8px 16px #000a)`:'';
 const cbadge=c=>c.b?`<span class="cbadge${c.b.startsWith('★')?' gold':''}">${esc(c.b)}</span>`:'';
 function buildCustom(){
  const idx=DB.skins.map((s,i)=>i),by=f=>idx.filter(i=>f(DB.skins[i]));const P=i=>DB.skins[i].p;
- const isGlove=s=>/Gloves|Wraps/.test(s.n);
- const cheap=by(s=>s.t!=='rare').sort((a,b)=>P(a)-P(b));
+ const isGlove=s=>/Gloves|Wraps/.test(s.n),knife=s=>s.t==='rare'&&!isGlove(s),gun=s=>s.t!=='rare';
+ const W=re=>by(s=>gun(s)&&re.test(s.n));
+ const cheap=by(gun).sort((a,b)=>P(a)-P(b)),top=[...idx].sort((a,b)=>P(b)-P(a));
+ // [id, имя, категория, базовый кейс, фильтр, значок, пул, жёсткость(чем больше — тем реже дорогие)]
  const defs=[
-  ['x_kop','Копилка','#5e98d9','#14304f','1 ₽',cheap.slice(0,30),.5],
-  ['x_stud','Студент','#4b69ff','#1a2466','STUD',by(s=>s.t!=='rare'&&s.p<200),.8],
-  ['x_pist','Пистолеты','#8847ff','#2a1666','PISTOL',by(s=>s.t!=='rare'&&/^(Glock-18|USP-S|Desert Eagle|P250|Five-SeveN|Tec-9|CZ75-Auto|P2000|Dual Berettas|R8 Revolver) \|/.test(s.n)),1],
-  ['x_ak','Только AK-47','#d32ce6','#43104c','AK-47',by(s=>/^AK-47 \|/.test(s.n)),1],
-  ['x_m4','Только M4','#c43be0','#3a1250','M4',by(s=>/^M4A(4|1-S) \|/.test(s.n)),1],
-  ['x_awp','Только AWP','#2bd4a4','#0b4636','AWP',by(s=>/^AWP \|/.test(s.n)),1],
-  ['x_5050','50 / 50','#ffb02e','#5a3800','50/50',[...cheap.slice(0,15),...by(s=>s.t==='covert')],'half'],
-  ['x_red','Красная линия','#eb4b4b','#55101a','COVERT',by(s=>s.t==='covert'),1],
-  ['x_glv','Перчатки','#e4ae39','#4f3608','GLOVES',by(s=>s.t==='rare'&&isGlove(s)),.9],
-  ['x_knf','Только ножи','#ffcf5a','#3a2700','KNIVES',by(s=>s.t==='rare'&&!isGlove(s)),.7],
-  ['x_leg','Легенда','#fff1b8','#7a5200','LEGEND',by(s=>s.t==='rare'&&!isGlove(s)&&/Doppler|Fade|Lore|Marble|Tiger Tooth|Emerald|Slaughter/.test(s.n)),.5]];
+  ['x_bomj','Бомж','Дешёвые','Operation Breakout Weapon Case',FL.dark,'0 ₽',cheap.slice(0,12),.3],
+  ['x_kop','Копилка','Дешёвые','Recoil Case',FL.gray,'₽',cheap.slice(0,30),.5],
+  ['x_stud','Студент','Дешёвые','Revolution Case',hue(160,1.3),'STUD',by(s=>gun(s)&&s.p<200),.8],
+  ['x_blue','Синяя полоса','Дешёвые','Gamma 2 Case',hue(200),'BLUE',by(s=>s.t==='milspec'),.6],
+  ['x_rnd','Рандом','Дешёвые','Horizon Case',FL.neon,'???',by(gun),1.1],
+  ['x_pist','Пистолеты','Оружие','Clutch Case',hue(250),'PISTOL',W(/^(Glock-18|USP-S|Desert Eagle|P250|Five-SeveN|Tec-9|CZ75-Auto|P2000|Dual Berettas|R8 Revolver) \|/),1],
+  ['x_glock','Только Glock','Оружие','Glove Case',hue(30),'GLOCK',W(/^Glock-18 \|/),1],
+  ['x_usp','Только USP-S','Оружие','Shadow Case',hue(180),'USP',W(/^USP-S \|/),1],
+  ['x_deag','Только Deagle','Оружие','Operation Wildfire Case',hue(330),'DEAGLE',W(/^Desert Eagle \|/),1],
+  ['x_smg','Пистолеты-пулемёты','Оружие','Falchion Case',hue(60),'SMG',W(/^(MP9|MAC-10|MP7|UMP-45|P90|PP-Bizon|MP5-SD) \|/),1],
+  ['x_shot','Дробовики','Оружие','Huntsman Weapon Case',hue(20,1.2),'SHOTGUN',W(/^(Nova|XM1014|MAG-7|Sawed-Off) \|/),1],
+  ['x_rifle','Винтовки','Оружие','Operation Hydra Case',hue(140),'RIFLE',W(/^(FAMAS|Galil AR|AUG|SG 553) \|/),1],
+  ['x_ak','Только AK-47','Оружие','Kilowatt Case',hue(290,1.7),'AK-47',W(/^AK-47 \|/),1],
+  ['x_m4','Только M4','Оружие','Fracture Case',hue(110,1.4),'M4',W(/^M4A(4|1-S) \|/),1],
+  ['x_awp','Только AWP','Оружие','Snakebite Case',hue(80,1.6),'AWP',W(/^AWP \|/),1],
+  ['x_snip','Снайперы','Оружие','Chroma 3 Case',hue(100,1.2),'SNIPER',W(/^(AWP|SSG 08|SCAR-20|G3SG1) \|/),1],
+  ['x_purple','Фиолетовый','По редкости','Prisma Case',hue(270,1.8),'PURPLE',by(s=>s.t==='restricted'),.8],
+  ['x_pink','Розовый','По редкости','Gamma Case',hue(310,1.8),'PINK',by(s=>s.t==='classified'),.8],
+  ['x_red','Красная линия','По редкости','Prisma 2 Case',FL.red,'COVERT',by(s=>s.t==='covert'),1],
+  ['x_5050','50 / 50','По редкости','Dreams & Nightmares Case',FL.bw,'50/50',[...cheap.slice(0,15),...by(s=>s.t==='covert')],'half'],
+  ['x_glv','Перчатки','Ножи и перчатки','Danger Zone Case',FL.amber,'GLOVES',by(s=>s.t==='rare'&&isGlove(s)),.9],
+  ['x_sglv','Спортивные перчатки','Ножи и перчатки','Operation Broken Fang Case',hue(90,2),'★ SPORT',by(s=>s.t==='rare'&&/Sport Gloves|Specialist Gloves/.test(s.n)),.6],
+  ['x_knf','Только ножи','Ножи и перчатки','Spectrum Case',FL.gold,'★ KNIFE',by(knife),.7],
+  ['x_bay','Штык-ножи','Ножи и перчатки','Chroma 2 Case',hue(200,2),'★ BAYONET',by(s=>knife(s)&&/Bayonet/.test(s.n)),.6],
+  ['x_karam','Только Karambit','Ножи и перчатки','Gamma Case',FL.gold+' hue-rotate(-20deg)','★ KARAMBIT',by(s=>knife(s)&&/Karambit/.test(s.n)),.5],
+  ['x_bfly','Только Butterfly','Ножи и перчатки','Spectrum 2 Case',hue(300,2),'★ BUTTERFLY',by(s=>knife(s)&&/Butterfly/.test(s.n)),.5],
+  ['x_fade','Только Fade','Премиум','Chroma Case',hue(330,2.5)+' brightness(1.2)','★ FADE',by(s=>knife(s)&&/Fade/.test(s.n)),.5],
+  ['x_dopp','Только Doppler','Премиум','Gamma 2 Case',hue(250,2.5)+' brightness(1.15)','★ DOPPLER',by(s=>knife(s)&&/Doppler/.test(s.n)),.5],
+  ['x_leg','Легенда','Премиум','Chroma Case','sepia(.7) saturate(3.5) hue-rotate(-15deg) brightness(1.35) contrast(1.15)','★ LEGEND',by(s=>knife(s)&&/Doppler|Fade|Lore|Marble|Tiger Tooth|Emerald|Slaughter/.test(s.n)),.5],
+  ['x_mill','Миллионер','Премиум','Spectrum Case',FL.plat,'★ 1M',top.slice(0,15),.3],
+  ['x_olig','Олигарх','Премиум','Kilowatt Case',FL.plat+' sepia(.4)','★ TOP-5',top.slice(0,5),0]];
  const out=[];
- for(const[id,n,c1,c2,l,pool,a]of defs){if(pool.length<3)continue;
-  let w;if(a==='half'){const ch=pool.filter(i=>DB.skins[i].t!=='covert'),cv=pool.filter(i=>DB.skins[i].t==='covert');if(!cv.length)continue;w=pool.map(i=>DB.skins[i].t==='covert'?.5/cv.length:.5/ch.length)}
+ for(const[id,n,cat,bn,f,b,pool,a]of defs){if(pool.length<3)continue;
+  let w;if(a==='half'){const ch=pool.filter(i=>DB.skins[i].t!=='covert'),cv=pool.filter(i=>DB.skins[i].t==='covert');if(!cv.length||!ch.length)continue;w=pool.map(i=>DB.skins[i].t==='covert'?.5/cv.length:.5/ch.length)}
   else{w=pool.map(i=>Math.pow(P(i),-a));const s=w.reduce((x,y)=>x+y,0);w=w.map(x=>x/s)}
   const ev=pool.reduce((s,i,k)=>s+w[k]*P(i),0)*1.027*1.06;
-  const L=LOOK[id],base=DB.cases.find(x=>x.n===L[0])||DB.cases[out.length%DB.cases.length]||{};out.push({id,n,i:base.i||'',f:L[1],b:L[2],d:'',custom:true,pool:pool.map((i,k)=>({i,w:w[k]})).sort((x,y)=>P(y.i)-P(x.i)),price:Math.max(5,Math.ceil(ev*1.1/5)*5)})}
+  const base=DB.cases.find(x=>x.n===bn)||DB.cases[out.length%DB.cases.length]||{};
+  out.push({id,n,cat,i:base.i||'',f,b,d:'',custom:true,pool:pool.map((i,k)=>({i,w:w[k]})).sort((x,y)=>P(y.i)-P(x.i)),price:Math.max(5,Math.ceil(ev*1.1/5)*5)})}
  return out}
 function pickPool(c){let r=Math.random(),a=0;for(const p of c.pool){a+=p.w;if(r<a)return DB.skins[p.i]}return DB.skins[c.pool[0].i]}
 function prepDB(){
@@ -463,7 +477,7 @@ function prepDB(){
 }
 
 /* ================= СОХРАНЕНИЕ ================= */
-const DEF={bal:1000,reg:false,avimg:'',nick:'Игрок',av:0,avc:0,xp:0,uid:1,inv:[],hist:[],daily:0,sound:true,fast:false,
+const DEF={bal:500,reg:false,avimg:'',nick:'Игрок',av:0,avc:0,xp:0,uid:1,inv:[],hist:[],daily:0,sound:true,fast:false,
  st:{opened:0,bp:0,bw:0,up:0,uw:0,ct:0,wag:0,won:0,best:null}};
 let S;try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem(SKEY)||'{}'));S.st=Object.assign({},DEF.st,S.st||{})}catch(e){S=JSON.parse(JSON.stringify(DEF))}
 function save(){try{localStorage.setItem(SKEY,JSON.stringify(S))}catch(e){}updHead()}
@@ -540,12 +554,12 @@ function bonusModal(){const now=Date.now(),left=S.daily+864e5-now;const amt=300+
 function pageCases(){
  main.innerHTML=`<div class="hero"><div class="gl">${ic('cases')}</div><h1>Открывай кейсы CS2</h1><p>${DB.cases.length} оригинальных кейсов CS2, ${DB.custom.length} авторских и ${DB.skins.length} скинов. Крути, апгрейдь, сражайся в батлах.</p></div>
  <div class="toolbar"><input id="cs" placeholder="Поиск кейса…"><select id="csort"><option value="new">Сначала новые</option><option value="cheap">Сначала дешёвые</option><option value="exp">Сначала дорогие</option><option value="old">Сначала старые</option></select></div>
- <h2 id="h1c">Авторские кейсы</h2><div class="cgrid" id="cgrid1"></div><h2 id="h2c">Оригинальные кейсы CS2</h2><div class="cgrid" id="cgrid"></div>`;
+ <div id="cust"></div><h2 id="h2c">Оригинальные кейсы CS2</h2><div class="cgrid" id="cgrid"></div>`;
  const card=c=>`<div class="case${c.custom?' cust':''}" data-id="${c.id}">${cbadge(c)}${DB.newest.has(c.id)?'<span class="new">NEW</span>':''}<img src="${esc(c.i||GUN)}" style="${cf(c)}" loading="lazy" onerror="imgErr(this)"><div class="cn">${esc(c.n)}</div><div class="cp">${fmt(c.price)}</div></div>`;
  const draw=()=>{const q=$('#cs').value.toLowerCase(),so=$('#csort').value;
   const f=list=>{let a=list.filter(c=>c.n.toLowerCase().includes(q));if(so==='cheap')a=[...a].sort((x,y)=>x.price-y.price);if(so==='exp')a=[...a].sort((x,y)=>y.price-x.price);if(so==='old')a=[...a].reverse();return a};
   const a1=f(DB.custom),a2=f(DB.cases);
-  $('#cgrid1').innerHTML=a1.map(card).join('');$('#h1c').style.display=a1.length?'':'none';
+  $('#cust').innerHTML=CATS.map(cat=>{const l=a1.filter(c=>c.cat===cat);return l.length?`<h2>${cat} <span class="mut" style="font-size:14px">· ${l.length}</span></h2><div class="cgrid">${l.map(card).join('')}</div>`:''}).join('');
   $('#cgrid').innerHTML=a2.map(card).join('');$('#h2c').style.display=a2.length?'':'none';
   if(!a1.length&&!a2.length)$('#cgrid').innerHTML='<div class="empty">Ничего не найдено</div>';
   $$('.case').forEach(e=>e.onclick=()=>go('case',e.dataset.id))};
@@ -555,7 +569,7 @@ function pageCase(id){
  const c=DB.byId[id];if(!c)return go('cases');let cnt=1;
  const groups=c.pool?[]:TORD.filter(t=>c.g[t]);
  main.innerHTML=`<button class="back" onclick="go('cases')">← Все кейсы</button>
- <div class="cphead"><img src="${esc(c.i||GUN)}" style="${cf(c)}" onerror="imgErr(this)"><div><div class="mut">${c.custom?'Авторский кейс':c.d?('Выпущен '+c.d):''}</div><h1>${esc(c.n)} ${cbadge(c).replace('cbadge','cbadge inl')}</h1>
+ <div class="cphead"><img src="${esc(c.i||GUN)}" style="${cf(c)}" onerror="imgErr(this)"><div><div class="mut">${c.custom?'Авторский кейс · '+c.cat:c.d?('Выпущен '+c.d):''}</div><h1>${esc(c.n)} ${cbadge(c).replace('cbadge','cbadge inl')}</h1>
   <div class="row" style="margin:12px 0"><div class="seg" id="cnt">${[1,2,3,4,5].map(n=>`<button data-n="${n}" class="${n===1?'on':''}">x${n}</button>`).join('')}</div><label class="chk"><input type="checkbox" id="fast" ${S.fast?'checked':''}> Быстрое открытие</label></div>
   <div class="row"><button class="btn big" id="open">Открыть за <span id="oc"></span></button><button class="btn ghost" id="demo">Пробная прокрутка</button></div></div></div>
  <div id="reels"></div>
@@ -923,8 +937,9 @@ function pageProfile(){
  $('#sellall').onclick=()=>openModal(`<h2 style="margin:0 0 10px">Продать весь инвентарь?</h2><p class="mut">${S.inv.length} предметов за ${fmt(invSum())}</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn red" id="cfs">Продать</button></div>`)||($('#cfs').onclick=()=>{const s=sellU(S.inv.map(i=>i.u));toast('+'+fmt(s),'good');closeModal();pageProfile()});
  $('#sellch').onclick=()=>{const u=S.inv.filter(i=>i.p<100).map(i=>i.u);if(!u.length){toast('Нет таких скинов');return}const s=sellU(u);toast(`Продано ${u.length} шт. +${fmt(s)}`,'good');pageProfile()};
  $('#reload').onclick=async()=>{toast('Обновляю базу…');const db=await loadRemote();if(db){try{localStorage.setItem(DBKEY,JSON.stringify(db))}catch(e){}DB=db;prepDB();toast(`Готово: ${DB.cases.length} кейсов`,'good')}else toast('Не удалось загрузить','bad')};
- $('#reset').onclick=()=>openModal(`<h2 style="margin:0 0 10px">Сбросить весь прогресс?</h2><p class="mut">Баланс, инвентарь и статистика удалятся.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn red" id="cfr">Сбросить</button></div>`)||($('#cfr').onclick=()=>{S=JSON.parse(JSON.stringify(DEF));save();closeModal();pageProfile();regModal()})}
+ $('#reset').onclick=()=>openModal(`<h2 style="margin:0 0 10px">Сбросить весь прогресс?</h2><p class="mut">Баланс, инвентарь и статистика удалятся.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn red" id="cfr">Сбросить</button></div>`)||($('#cfr').onclick=()=>{S=JSON.parse(JSON.stringify(DEF));S.bal=startBal();save();closeModal();pageProfile();regModal()})}
 
+const startBal=()=>Math.min(DEF.bal,Math.max(...DB.all.map(c=>c.price)));
 /* ================= АВАТАР / РЕГИСТРАЦИЯ ================= */
 const initial=n=>esc((String(n||'?').trim()[0]||'?').toUpperCase());
 const myAv=()=>S.avimg?`<img src="${S.avimg}" alt="">`:initial(S.nick);
@@ -936,10 +951,10 @@ function regModal(){let img=S.avimg||'';
  <div class="bigav regav" id="rav" style="background:${AVC[S.avc%AVC.length]};margin:0 auto">${img?`<img src="${img}">`:'+'}</div><div class="mut" style="font-size:12px;margin:8px 0 14px">Нажми, чтобы поставить своё фото</div></div>
  <div class="field"><label>Никнейм</label><input id="rn" maxlength="16" placeholder="Твой ник" value="${S.nick==='Игрок'?'':esc(S.nick)}"></div>
  <button class="btn big" id="rgo" style="width:100%;margin-top:6px">Создать профиль</button>
- <p class="mut" style="font-size:12px;text-align:center;margin-bottom:0">Стартовый баланс — ${fmt(DEF.bal)}</p>`,true);
+ <p class="mut" style="font-size:12px;text-align:center;margin-bottom:0">Стартовый баланс — ${fmt(startBal())}</p>`,true);
  $('#mbody').style.maxWidth='420px';
  $('#rav').onclick=()=>pickAvatar(d=>{img=d;$('#rav').innerHTML=`<img src="${d}">`});
- $('#rgo').onclick=()=>{const n=$('#rn').value.trim();if(n.length<2){toast('Ник минимум 2 символа','bad');return}S.nick=n.slice(0,16);S.avimg=img;S.reg=true;save();closeModal();$('#mbody').style.maxWidth='';toast(`Добро пожаловать, ${S.nick}!`,'good');if(PAGE==='profile')pageProfile()}}
+ $('#rgo').onclick=()=>{const n=$('#rn').value.trim();if(n.length<2){toast('Ник минимум 2 символа','bad');return}S.nick=n.slice(0,16);S.avimg=img;if(!S.reg&&!S.st.wag)S.bal=startBal();S.reg=true;save();closeModal();$('#mbody').style.maxWidth='';toast(`Добро пожаловать, ${S.nick}!`,'good');if(PAGE==='profile')pageProfile()}}
 
 /* ================= СТАРТ ================= */
 (async()=>{
