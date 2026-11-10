@@ -923,13 +923,14 @@ function pickAvatar(cb){const inp=document.createElement('input');inp.type='file
 const IS_APP=!!window.Android;
 function steamLogin(){if(busy){toast('Дождись окончания игры','bad');return}
  if(!IS_APP){openModal(`<h2 style="margin:0 0 8px">Вход через Steam</h2><p class="mut">Вход через Steam работает в приложении CaseBattle (APK). Там кнопка откроет официальную страницу Steam — входишь или подтверждаешь вход в мобильном Steam, и тебя возвращает в игру.</p><div class="row" style="justify-content:flex-end"><button class="btn" id="sok">Понятно</button></div>`,true);$('#sok').onclick=()=>S.reg?closeModal():regModal();return}
- toast('Открываю Steam…');try{window.Android.steamLogin()}catch(e){toast('Не удалось открыть Steam','bad')}}
+ try{window.Android.steamLogin()}catch(e){toast('Не удалось открыть Steam','bad')}}
 window.steamDone=o=>{closeModal();
  let saved=null;try{saved=localStorage.getItem('cb_acc_'+o.id)}catch(e){}
  const guest=!CUR?S:null;CUR=o.id;try{localStorage.setItem('cb_cur',CUR)}catch(e){}
  if(saved){loadS();toast(`С возвращением, ${o.name}!`,'good')}
  else{if(guest&&guest.reg){S=guest;try{localStorage.removeItem(SKEY)}catch(e){}toast('Steam привязан, прогресс перенесён','good')}else{S=JSON.parse(JSON.stringify(DEF));S.bal=startBal();toast(`Добро пожаловать, ${o.name}!`,'good')}}
  S.steam=o.id;S.nick=(o.name||S.nick).slice(0,16);if(o.avatar&&!S.avOwn)S.avimg=o.avatar;S.reg=true;save();winS();go('profile')};
+window.steamWait=()=>toast('Проверяю вход в Steam…');
 window.steamFail=m=>{toast(m==='cancel'?'Вход через Steam отменён':'Не удалось войти через Steam','bad');if(!S.reg)regModal()};
 function steamLogout(){if(busy)return;CUR='';try{localStorage.setItem('cb_cur','')}catch(e){}loadS();save();toast('Вы вышли из аккаунта');go('cases');if(!S.reg)regModal()}
 function regModal(){let img=S.avimg||'';

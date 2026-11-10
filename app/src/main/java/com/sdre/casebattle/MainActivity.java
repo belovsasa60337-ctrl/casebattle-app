@@ -14,6 +14,16 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.graphics.Bitmap;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import org.json.JSONObject;
 
@@ -30,7 +40,12 @@ public class MainActivity extends Activity {
     static final String HOME = "file:///android_asset/index.html";
     static final String RETURN = "https://belovsasa60337-ctrl.github.io/casebattle-app/steam-return";
     static final String REALM = "https://belovsasa60337-ctrl.github.io/";
-    private WebView web;
+    private WebView web, steam;
+    private LinearLayout overlay;
+    private ProgressBar bar;
+    private TextView err;
+    private boolean steamLoaded = false;
+    private final Handler ui = new Handler(Looper.getMainLooper());
     private ValueCallback<Uri[]> fileCb;
     private String pendingJs = null;
     private static final int PICK = 1;
@@ -42,7 +57,10 @@ public class MainActivity extends Activity {
         getWindow().setNavigationBarColor(Color.parseColor("#0a0c13"));
         web = new WebView(this);
         web.setBackgroundColor(Color.parseColor("#0a0c13"));
-        setContentView(web);
+        FrameLayout root = new FrameLayout(this);
+        root.addView(web, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(buildOverlay(), new FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -98,13 +116,121 @@ public class MainActivity extends Activity {
         Uri u = Uri.parse(url);
         String scheme = u.getScheme(), host = u.getHost() == null ? "" : u.getHost();
         if ("file".equals(scheme)) return false;
-        if (host.endsWith("steamcommunity.com") || host.endsWith("steampowered.com")) return false;
         try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) {}
         return true;
     }
 
+    private int dp(int v) { return (int) (v * getResources().getDisplayMetrics().density); }
+
+    private View buildOverlay() {
+        overlay = new LinearLayout(this);
+        overlay.setOrientation(LinearLayout.VERTICAL);
+        overlay.setBackgroundColor(Color.parseColor("#0a0c13"));
+        overlay.setVisibility(View.GONE);
+        overlay.setClickable(true);
+
+        LinearLayout top = new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setPadding(dp(16), dp(10), dp(8), dp(10));
+        top.setBackgroundColor(Color.parseColor("#1b2838"));
+        TextView t = new TextView(this);
+        t.setText("Вход через Steam");
+        t.setTextColor(Color.WHITE);
+        t.setTextSize(17);
+        top.addView(t, new LinearLayout.LayoutParams(0, -2, 1));
+        Button close = new Button(this);
+        close.setText("Закрыть");
+        close.setOnClickListener(v -> closeSteam(true));
+        top.addView(close);
+        overlay.addView(top, new LinearLayout.LayoutParams(-1, -2));
+
+        bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setMax(100);
+        bar.setIndeterminate(true);
+        overlay.addView(bar, new LinearLayout.LayoutParams(-1, dp(4)));
+
+        err = new TextView(this);
+        err.setTextColor(Color.parseColor("#c7d5e0"));
+        err.setTextSize(15);
+        err.setPadding(dp(20), dp(16), dp(20), dp(16));
+        err.setBackgroundColor(Color.parseColor("#2a1a1f"));
+        err.setVisibility(View.GONE);
+        err.setOnClickListener(v -> startSteam());
+        overlay.addView(err, new LinearLayout.LayoutParams(-1, -2));
+
+        steam = new WebView(this);
+        steam.setBackgroundColor(Color.parseColor("#171a21"));
+        WebSettings s = steam.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(steam, true);
+        steam.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                String u = r.getUrl().toString();
+                if (u.startsWith(RETURN)) { handleReturn(u); return true; }
+                return false;
+            }
+            @Override
+            public void onPageStarted(WebView v, String url, Bitmap f) {
+                if (url.startsWith(RETURN)) { v.stopLoading(); handleReturn(url); }
+            }
+            @Override
+            public void onPageFinished(WebView v, String url) {
+                if (url.contains("steamcommunity.com") || url.contains("steampowered.com")) {
+                    steamLoaded = true; bar.setVisibility(View.GONE); err.setVisibility(View.GONE);
+                }
+            }
+            @Override
+            public void onReceivedError(WebView v, android.webkit.WebResourceRequest r, android.webkit.WebResourceError e) {
+                if (r.isForMainFrame()) showErr("Не удалось открыть Steam (" + e.getDescription() + ").");
+            }
+        });
+        steam.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView v, int p) {
+                if (p > 5) { bar.setIndeterminate(false); bar.setProgress(p); }
+            }
+        });
+        overlay.addView(steam, new LinearLayout.LayoutParams(-1, 0, 1));
+        return overlay;
+    }
+
+    private void showErr(String why) {
+        bar.setVisibility(View.GONE);
+        err.setText(why + "\n\nСайт steamcommunity.com у некоторых провайдеров в России открывается очень медленно или не открывается. Попробуй переключиться между Wi‑Fi и мобильным интернетом или включить VPN.\n\nНажми сюда, чтобы попробовать снова.");
+        err.setVisibility(View.VISIBLE);
+    }
+
+    private void startSteam() {
+        steamLoaded = false;
+        err.setVisibility(View.GONE);
+        bar.setVisibility(View.VISIBLE); bar.setIndeterminate(true);
+        overlay.setVisibility(View.VISIBLE);
+        Uri.Builder q = Uri.parse("https://steamcommunity.com/openid/login").buildUpon()
+            .appendQueryParameter("openid.ns", "http://specs.openid.net/auth/2.0")
+            .appendQueryParameter("openid.mode", "checkid_setup")
+            .appendQueryParameter("openid.return_to", RETURN)
+            .appendQueryParameter("openid.realm", REALM)
+            .appendQueryParameter("openid.identity", "http://specs.openid.net/auth/2.0/identifier_select")
+            .appendQueryParameter("openid.claimed_id", "http://specs.openid.net/auth/2.0/identifier_select");
+        steam.stopLoading();
+        steam.loadUrl(q.build().toString());
+        ui.removeCallbacksAndMessages(null);
+        ui.postDelayed(() -> { if (!steamLoaded && overlay.getVisibility() == View.VISIBLE) showErr("Steam не отвечает уже 20 секунд."); }, 20000);
+    }
+
+    private void closeSteam(boolean cancelled) {
+        ui.removeCallbacksAndMessages(null);
+        overlay.setVisibility(View.GONE);
+        steam.stopLoading();
+        steam.loadUrl("about:blank");
+        if (cancelled) web.evaluateJavascript("window.steamFail&&steamFail('cancel')", null);
+    }
+
     private void handleReturn(final String url) {
-        web.loadUrl(HOME);
+        closeSteam(false);
+        web.evaluateJavascript("window.steamWait&&steamWait()", null);
         new Thread(() -> {
             String js;
             try {
@@ -144,8 +270,7 @@ public class MainActivity extends Activity {
             }
             final String fjs = js;
             runOnUiThread(() -> {
-                if (web.getUrl() != null && web.getUrl().startsWith(HOME) && web.getProgress() == 100) web.evaluateJavascript(fjs, null);
-                else pendingJs = fjs;
+                web.evaluateJavascript(fjs, null);
             });
         }).start();
     }
@@ -168,18 +293,7 @@ public class MainActivity extends Activity {
 
     class Bridge {
         @JavascriptInterface
-        public void steamLogin() {
-            runOnUiThread(() -> {
-                Uri.Builder q = Uri.parse("https://steamcommunity.com/openid/login").buildUpon()
-                    .appendQueryParameter("openid.ns", "http://specs.openid.net/auth/2.0")
-                    .appendQueryParameter("openid.mode", "checkid_setup")
-                    .appendQueryParameter("openid.return_to", RETURN)
-                    .appendQueryParameter("openid.realm", REALM)
-                    .appendQueryParameter("openid.identity", "http://specs.openid.net/auth/2.0/identifier_select")
-                    .appendQueryParameter("openid.claimed_id", "http://specs.openid.net/auth/2.0/identifier_select");
-                web.loadUrl(q.build().toString());
-            });
-        }
+        public void steamLogin() { runOnUiThread(() -> startSteam()); }
         @JavascriptInterface
         public boolean isApp() { return true; }
     }
@@ -200,6 +314,10 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        if (overlay.getVisibility() == View.VISIBLE) {
+            if (steam.canGoBack()) steam.goBack(); else closeSteam(true);
+            return;
+        }
         String u = web.getUrl();
         if (u != null && !u.startsWith(HOME)) { web.loadUrl(HOME); return; }
         if (web.canGoBack()) web.goBack(); else super.onBackPressed();
