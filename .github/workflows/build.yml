@@ -1,7 +1,7 @@
 name: Build APK
 on:
   push:
-    paths-ignore: ["README.md"]
+    paths-ignore: ["README.md", "prices.json", "scripts/**", ".github/workflows/prices.yml"]
   workflow_dispatch:
 permissions:
   contents: write
