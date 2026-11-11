@@ -1,12 +1,14 @@
 """Собирает цены скинов (Steam) в prices.json: {"market_hash_name": цена_в_рублях}."""
 import json, urllib.request, gzip, io, sys, time
 
-def get(url, timeout=120):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept-Encoding": "gzip"})
+def get(url, timeout=120, enc="gzip"):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept-Encoding": enc, "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = r.read()
-        if r.headers.get("Content-Encoding") == "gzip" or data[:2] == b"\x1f\x8b":
-            data = gzip.decompress(data)
+        data = r.read(); ce = r.headers.get("Content-Encoding", "")
+        print(" ", url[:60], r.status, r.headers.get("Content-Type"), ce, len(data), data[:80])
+        if ce == "gzip" or data[:2] == b"\x1f\x8b": data = gzip.decompress(data)
+        elif ce == "br":
+            import brotli; data = brotli.decompress(data)
         return json.loads(data)
 
 rate = 80.0
@@ -18,12 +20,23 @@ print("USD->RUB", rate)
 
 STEAM_CAP = 1500  # на Steam цена упирается в потолок ~$1800, для таких берём сторонние площадки
 prices, src = {}, None
-for url in ["https://prices.csgotrader.app/latest/prices_v6.json"]:
-    try:
-        src = get(url); print("loaded", url, len(src)); break
-    except Exception as e:
-        print("fail", url, e)
+for url in ["https://prices.csgotrader.app/latest/prices_v6.json", "https://prices.csgotrader.app/latest/steam.json"]:
+    for enc in ("gzip", "identity", "br"):
+        try:
+            src = get(url, enc=enc); print("loaded", url, enc, len(src)); break
+        except Exception as e:
+            print("fail", url, enc, repr(e)[:200])
+    if src: break
 if not src:
+    # запасной источник: market.csgo.com (цены сразу в рублях)
+    try:
+        j = get("https://market.csgo.com/api/v2/prices/RUB.json")
+        src = {}
+        for it in j.get("items", []):
+            v = num(it.get("price")) if False else None
+        print("market.csgo.com items", len(j.get("items", [])), json.dumps(j.get("items", [])[:2])[:300])
+    except Exception as e:
+        print("market fail", e)
     sys.exit("no price source")
 
 def num(v):
