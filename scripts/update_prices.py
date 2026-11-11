@@ -42,7 +42,7 @@ for src in ("buff163", "csfloat", "skinport"):
     except Exception as e:
         print("skip", src, repr(e)[:120])
 
-STEAM_CAP, MAX_RUB = 1500, 1_500_000
+STEAM_CAP, MAX_RUB = 1500, 5_000_000
 names = set(steam) | set().union(*[set(d) for d in extra.values()]) if extra else set(steam)
 prices = {}
 for n in names:

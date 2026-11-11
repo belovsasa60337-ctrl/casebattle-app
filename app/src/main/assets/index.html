@@ -445,7 +445,7 @@ const rnd=a=>a[Math.random()*a.length|0];
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0)/4294967296}
 window.imgErr=e=>{e.onerror=null;e.src=GUN};
 function tierOf(id){id=id||'';if(id.includes('ancient'))return'covert';if(id.includes('legendary'))return'classified';if(id.includes('mythical'))return'restricted';if(id.includes('uncommon'))return'industrial';if(id.includes('rare'))return'milspec';return'consumer'}
-const MAXP=1500000;
+const MAXP=5000000;
 function basePrice(n,t){const[a,b]=PR[t];let p=t==='rare'?2500+330000*Math.pow(hash(n),30):a*Math.pow(b/a,hash(n));for(const[re,m]of BOOST)if(re.test(n))p*=m;return Math.min(MAXP,Math.max(3,Math.round(p)))}
 const canST=n=>!/Gloves|Wraps/.test(n);
 function splitName(n){const i=n.indexOf(' | ');return i<0?[n,'Ванильный']:[n.slice(0,i),n.slice(i+3)]}
@@ -805,7 +805,7 @@ function pageUpgrade(){
  <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Цель</b><input id="uq" placeholder="Поиск скина…" style="flex:1;min-width:120px"><select id="usrt"><option value="asc">Дешевле</option><option value="desc">Дороже</option></select></div><div class="igrid" id="utg"></div><button class="btn ghost" id="umore" style="width:100%;margin-top:10px;display:none">Показать ещё</button></div></div>`;
  const sum=()=>S.inv.filter(i=>UP.sel.includes(i.u)).reduce((a,b)=>a+b.p,0);
  const chance=()=>UP.target&&UP.sel.length?(UP.pc?UP.pc/100:Math.min(.8,Math.max(.00001,sum()/UP.target.p*.96))):0;
- const byPc=pc=>{const s=sum();if(!s){toast('Сначала выбери скины','bad');return}const goal=s*.96/(pc/100);let best=null;for(const t of DB.targets){if(t.p<=s)continue;if(!best||Math.abs(t.p-goal)<Math.abs(best.p-goal))best=t}if(!best){toast('Нет скина под такой шанс','bad');return}UP.target=best;UP.pc=pc;drawAll()};
+ const byPc=pc=>{const s=sum();if(!s){toast('Сначала выбери скины','bad');return}const goal=s*.96/(pc/100);let best=null;for(const t of DB.targets){if(t.p<=s)continue;if(!best||Math.abs(t.p-goal)<Math.abs(best.p-goal))best=t}if(!best){toast('Нет скина дороже твоих','bad');return}if(best.p<goal*.7){UP.target=best;UP.pc=null;drawAll();toast('Это самый дорогой скин — шанс '+$('#uch').textContent);return}UP.target=best;UP.pc=pc;drawAll()};
  const drawInv=()=>{$('#uinv').innerHTML=S.inv.length?S.inv.map(it=>itemCard(it,'',(UP.sel.includes(it.u)?'sel ':'')+'click')).join(''):'<div class="empty" style="grid-column:1/-1">Пусто. Открой кейсы!</div>';
   $$('#uinv .icard').forEach(e=>e.onclick=()=>{if(busy)return;const u=+e.dataset.u;if(UP.sel.includes(u))UP.sel=UP.sel.filter(x=>x!==u);else{if(UP.sel.length>=6){toast('Максимум 6 скинов','bad');return}UP.sel.push(u)}if(UP.pc&&sum()){byPc(UP.pc);return}if(UP.target&&UP.target.p<=sum())UP.target=null;drawAll()})};
  UP.lim=UP.lim||120;
