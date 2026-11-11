@@ -802,13 +802,14 @@ function pageUpgrade(){
   <div class="uslotc" id="uto"></div>
   <div class="ubar"><div class="ucset"><div class="mut" style="font-size:12px">Свой шанс: <b id="ucv" style="color:var(--good);font-size:15px">—</b></div><input type="range" id="ucr" min="1" max="80" step="1" value="50"><div class="qb">${[5,10,25,50,75].map(v=>`<button data-pc="${v}">${v}%</button>`).join('')}</div></div><button class="btn big" id="ugo">Апгрейд</button></div></div>
  <div class="ulists"><div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Ваши скины <span class="mut">(до 6)</span></b><span class="mut" id="usum"></span></div><div class="igrid" id="uinv"></div></div>
- <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Цель</b><input id="uq" placeholder="Поиск скина…" style="flex:1;max-width:240px"></div><div class="igrid" id="utg"></div></div></div>`;
+ <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Цель</b><input id="uq" placeholder="Поиск скина…" style="flex:1;min-width:120px"><select id="usrt"><option value="asc">Дешевле</option><option value="desc">Дороже</option></select></div><div class="igrid" id="utg"></div><button class="btn ghost" id="umore" style="width:100%;margin-top:10px;display:none">Показать ещё</button></div></div>`;
  const sum=()=>S.inv.filter(i=>UP.sel.includes(i.u)).reduce((a,b)=>a+b.p,0);
- const chance=()=>UP.target&&UP.sel.length?(UP.pc?UP.pc/100:Math.min(.8,Math.max(.01,sum()/UP.target.p*.96))):0;
+ const chance=()=>UP.target&&UP.sel.length?(UP.pc?UP.pc/100:Math.min(.8,Math.max(.00001,sum()/UP.target.p*.96))):0;
  const byPc=pc=>{const s=sum();if(!s){toast('Сначала выбери скины','bad');return}const goal=s*.96/(pc/100);let best=null;for(const t of DB.targets){if(t.p<=s)continue;if(!best||Math.abs(t.p-goal)<Math.abs(best.p-goal))best=t}if(!best){toast('Нет скина под такой шанс','bad');return}UP.target=best;UP.pc=pc;drawAll()};
  const drawInv=()=>{$('#uinv').innerHTML=S.inv.length?S.inv.map(it=>itemCard(it,'',(UP.sel.includes(it.u)?'sel ':'')+'click')).join(''):'<div class="empty" style="grid-column:1/-1">Пусто. Открой кейсы!</div>';
   $$('#uinv .icard').forEach(e=>e.onclick=()=>{if(busy)return;const u=+e.dataset.u;if(UP.sel.includes(u))UP.sel=UP.sel.filter(x=>x!==u);else{if(UP.sel.length>=6){toast('Максимум 6 скинов','bad');return}UP.sel.push(u)}if(UP.pc&&sum()){byPc(UP.pc);return}if(UP.target&&UP.target.p<=sum())UP.target=null;drawAll()})};
- const drawTg=()=>{const q=$('#uq').value.toLowerCase();const s=sum();const list=DB.targets.filter(t=>t.p>s&&t.n.toLowerCase().includes(q)).slice(0,150);
+ UP.lim=UP.lim||120;
+ const drawTg=()=>{const q=$('#uq').value.toLowerCase();const s=sum();let all=DB.targets.filter(t=>t.p>s&&t.n.toLowerCase().includes(q));if($('#usrt').value==='desc')all=all.slice().reverse();const list=all.slice(0,UP.lim);$('#umore').style.display=all.length>UP.lim?'':'none';$('#umore').textContent=`Показать ещё (${all.length-UP.lim})`;
   $('#utg').innerHTML=list.map(t=>itemCard({n:t.n,i:t.i,c:t.c,p:t.p,w:'FT'},'',(UP.target&&UP.target.n===t.n?'sel ':'')+'click').replace('data-u=""',`data-n="${esc(t.n)}"`)).join('')||'<div class="empty" style="grid-column:1/-1">Нет скинов</div>';
   $$('#utg .icard').forEach(e=>e.onclick=()=>{if(busy)return;UP.target=DB.targets.find(t=>t.n===e.dataset.n);UP.pc=null;drawAll()})};
  const drawMid=()=>{const s=sum(),ch=chance();$('#usum').textContent=UP.sel.length?fmt(s):'';
@@ -816,11 +817,11 @@ function pageUpgrade(){
   $('#ufrom').innerHTML=`<div class="ulab">Ваши скины</div>`+(sel.length?(sel.length===1?itemCard(sel[0]):`<div class="umulti">${sel.slice(0,6).map(i=>`<img src="${esc(i.i||GUN)}" onerror="imgErr(this)" style="--rc:${i.c}">`).join('')}</div><div class="usum">${fmt(s)}</div>`):'<div class="uempty">+<span>Выбери скины ниже</span></div>');
   $('#uto').innerHTML=`<div class="ulab">Вы получите</div>`+(UP.target?itemCard({n:UP.target.n,i:UP.target.i,c:UP.target.c,p:UP.target.p,w:'FT'}):'<div class="uempty">?<span>Выбери цель ниже</span></div>');
   const img=$('#uimg');if(UP.target){img.src=UP.target.i||GUN;img.style.display='';$('#uq0').style.display='none'}else{img.style.display='none';$('#uq0').style.display=''}
-  $('#uch').textContent=(ch*100).toFixed(2)+'%';$('#umx').textContent=ch?'x'+(UP.target.p/s).toFixed(2):'—';
+  $('#uch').textContent=(ch*100).toFixed(ch<.001?4:2)+'%';$('#umx').textContent=ch?'x'+(UP.target.p/s).toFixed(2):'—';
   const arc=$('#uarc');arc.setAttribute('stroke-dasharray',`${ch*2*Math.PI*84} 999`);arc.setAttribute('transform',`rotate(${90-ch*180} 110 110)`);
-  $('#ugo').disabled=!ch;$('#ucv').textContent=ch?(ch*100).toFixed(UP.pc?0:2)+'%':'—';if(!$('#ucr').matches(':active'))$('#ucr').value=Math.round(ch*100)||50;$$('.ucset [data-pc]').forEach(b=>b.classList.toggle('on',+b.dataset.pc===UP.pc))};
+  $('#ugo').disabled=!ch;$('#ucv').textContent=ch?(ch*100).toFixed(UP.pc?0:ch<.001?4:2)+'%':'—';if(!$('#ucr').matches(':active'))$('#ucr').value=Math.round(ch*100)||50;$$('.ucset [data-pc]').forEach(b=>b.classList.toggle('on',+b.dataset.pc===UP.pc))};
  const drawAll=()=>{drawInv();drawTg();drawMid()};
- $('#uq').oninput=drawTg;
+ $('#uq').oninput=()=>{UP.lim=120;drawTg()};$('#usrt').onchange=()=>{UP.lim=120;drawTg()};$('#umore').onclick=()=>{UP.lim+=120;drawTg()};
  $$('.ucset [data-pc]').forEach(b=>b.onclick=()=>{if(!busy)byPc(+b.dataset.pc)});
  $('#ucr').oninput=e=>{$('#ucv').textContent=e.target.value+'%'};$('#ucr').onchange=e=>{if(!busy)byPc(+e.target.value)};
  $('#ugo').onclick=async()=>{const ch=chance();if(!ch||busy)return;busy=true;$('#ugo').disabled=true;S.st.up++;
