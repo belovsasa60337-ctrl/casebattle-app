@@ -2,7 +2,15 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0c13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CaseBattle">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <title>CASE//BATTLE — кейсы CS2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -291,6 +299,12 @@ html,body{overflow-x:hidden}
 .ucset input[type=range]{margin:0}
 .ucset .qb{width:100%}
 .ucset .qb button.on{background:var(--acc);color:#111;border-color:var(--acc)}
+.hrow{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+header{padding-top:env(safe-area-inset-top)}
+main{padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+#toast{bottom:calc(24px + env(safe-area-inset-bottom))}
+input,select,textarea{font-size:16px}
+body{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -935,9 +949,9 @@ const myAv=()=>S.avimg?`<img src="${S.avimg}" alt="">`:initial(S.nick);
 function pickAvatar(cb){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
  inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const N=160,cv=document.createElement('canvas');cv.width=cv.height=N;const k=Math.min(im.width,im.height);
   cv.getContext('2d').drawImage(im,(im.width-k)/2,(im.height-k)/2,k,k,0,0,N,N);cb(cv.toDataURL('image/jpeg',.85))};im.onerror=()=>toast('Не удалось открыть картинку','bad');im.src=r.result};r.readAsDataURL(f)};inp.click()}
-const IS_APP=!!window.Android;
+const IS_APP=!!window.Android;const IS_IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function steamLogin(){if(busy){toast('Дождись окончания игры','bad');return}
- if(!IS_APP){openModal(`<h2 style="margin:0 0 8px">Вход через Steam</h2><p class="mut">Вход через Steam работает в приложении CaseBattle (APK). Там кнопка откроет официальную страницу Steam — входишь или подтверждаешь вход в мобильном Steam, и тебя возвращает в игру.</p><div class="row" style="justify-content:flex-end"><button class="btn" id="sok">Понятно</button></div>`,true);$('#sok').onclick=()=>S.reg?closeModal():regModal();return}
+ if(!IS_APP){openModal(`<h2 style="margin:0 0 8px">Вход через Steam</h2><p class="mut">${IS_IOS?'На iPhone вход через Steam пока недоступен — играй гостевым профилем, прогресс сохраняется на телефоне.':'Вход через Steam работает в приложении CaseBattle (APK) для Android.'} В приложении кнопка откроет официальную страницу Steam — входишь или подтверждаешь вход в мобильном Steam, и тебя возвращает в игру.</p><div class="row" style="justify-content:flex-end"><button class="btn" id="sok">Понятно</button></div>`,true);$('#sok').onclick=()=>S.reg?closeModal():regModal();return}
  try{window.Android.steamLogin()}catch(e){toast('Не удалось открыть Steam','bad')}}
 window.steamDone=o=>{closeModal();
  let saved=null;try{saved=localStorage.getItem('cb_acc_'+o.id)}catch(e){}

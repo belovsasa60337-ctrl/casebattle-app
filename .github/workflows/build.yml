@@ -1,6 +1,7 @@
 name: Build APK
 on:
   push:
+    paths-ignore: ["README.md"]
   workflow_dispatch:
 permissions:
   contents: write
@@ -10,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - run: if [ -f index.html ]; then cp index.html app/src/main/assets/index.html; fi
+      - run: cp index.html app/src/main/assets/index.html && cp manifest.json icon-*.png app/src/main/assets/
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
