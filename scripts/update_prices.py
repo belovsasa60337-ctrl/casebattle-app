@@ -1,87 +1,60 @@
-"""Собирает цены скинов (Steam) в prices.json: {"market_hash_name": цена_в_рублях}."""
-import json, urllib.request, gzip, io, sys, time
+"""Собирает цены скинов в prices.json: {"p": {"market_hash_name": цена_в_рублях}}.
+Основа — цены Steam Market. Steam не даёт ставить цену выше ~$1800, поэтому для
+дорогих скинов берём цену со сторонних площадок (Buff163 / CSFloat / Skinport)."""
+import json, urllib.request, gzip, time
 
-def get(url, timeout=120, enc="gzip"):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept-Encoding": enc, "Accept": "application/json"})
+def get(url, timeout=120):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept-Encoding": "gzip", "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = r.read(); ce = r.headers.get("Content-Encoding", "")
-        print(" ", url[:60], r.status, r.headers.get("Content-Type"), ce, len(data), data[:80])
-        if ce == "gzip" or data[:2] == b"\x1f\x8b": data = gzip.decompress(data)
-        elif ce == "br":
-            import brotli; data = brotli.decompress(data)
+        data = r.read()
+        if r.headers.get("Content-Encoding") == "gzip" or data[:2] == b"\x1f\x8b": data = gzip.decompress(data)
         return json.loads(data)
-
-rate = 80.0
-try:
-    rate = float(get("https://open.er-api.com/v6/latest/USD")["rates"]["RUB"])
-except Exception as e:
-    print("rate fallback", e)
-print("USD->RUB", rate)
-
-STEAM_CAP = 1500  # на Steam цена упирается в потолок ~$1800, для таких берём сторонние площадки
-prices, src = {}, None
-for url in ["https://prices.csgotrader.app/latest/prices_v6.json", "https://prices.csgotrader.app/latest/steam.json"]:
-    for enc in ("gzip", "identity", "br"):
-        try:
-            src = get(url, enc=enc); print("loaded", url, enc, len(src)); break
-        except Exception as e:
-            print("fail", url, enc, repr(e)[:200])
-    if src: break
-if not src:
-    # запасной источник: market.csgo.com (цены сразу в рублях)
-    try:
-        j = get("https://market.csgo.com/api/v2/prices/RUB.json")
-        src = {}
-        for it in j.get("items", []):
-            v = num(it.get("price")) if False else None
-        print("market.csgo.com items", len(j.get("items", [])), json.dumps(j.get("items", [])[:2])[:300])
-    except Exception as e:
-        print("market fail", e)
-    sys.exit("no price source")
 
 def num(v):
     try:
-        v = float(v)
-        return v if v > 0 else None
+        v = float(v); return v if v > 0 else None
     except Exception:
         return None
 
-def steam_price(o):
-    st = o.get("steam") or {}
-    if isinstance(st, dict):
-        for k in ("last_7d", "last_24h", "last_30d", "last_90d", "last_ever"):
-            v = num(st.get(k))
-            if v: return v
-    return num(st)
-
-def other_price(o):
-    best = None
-    for k, v in o.items():
-        if k == "steam": continue
-        cand = None
+def pick(o, keys):
+    if not isinstance(o, dict): return num(o)
+    for k in keys:
+        v = o.get(k)
         if isinstance(v, dict):
-            for kk in ("starting_at", "price", "highest_order", "last_7d", "last_24h"):
-                x = v.get(kk)
-                if isinstance(x, dict): x = x.get("price")
-                cand = num(x)
-                if cand: break
-        else:
-            cand = num(v)
-        if cand and (best is None or cand > best): best = cand
-    return best
+            v = pick(v, ("price", "starting_at", "last_7d", "last_24h"))
+        v = num(v)
+        if v: return v
+    return None
 
-sample = next(iter(src.items()))
-print("sample", json.dumps(sample)[:600])
-for name, o in src.items():
-    if not isinstance(o, dict): continue
-    p = steam_price(o)
+rate = 80.0
+try: rate = float(get("https://open.er-api.com/v6/latest/USD")["rates"]["RUB"])
+except Exception as e: print("rate fallback", e)
+print("USD->RUB", rate)
+
+steam = get("https://prices.csgotrader.app/latest/steam.json")
+print("steam", len(steam))
+extra = {}
+for src in ("buff163", "csfloat", "skinport"):
+    try:
+        d = get(f"https://prices.csgotrader.app/latest/{src}.json")
+        extra[src] = d
+        print(src, len(d), json.dumps(next(iter(d.items())))[:200])
+    except Exception as e:
+        print("skip", src, repr(e)[:120])
+
+STEAM_CAP, MAX_RUB = 1500, 1_500_000
+names = set(steam) | set().union(*[set(d) for d in extra.values()]) if extra else set(steam)
+prices = {}
+for n in names:
+    p = pick(steam.get(n), ("last_7d", "last_24h", "last_30d", "last_90d"))
     if p is None or p >= STEAM_CAP:
-        q = other_price(o)
-        if q and (p is None or q > p): p = q
-    if p:
-        prices[name] = round(min(p * rate, 1_500_000))
+        alt = [pick(d.get(n), ("starting_at", "price", "highest_order", "last_7d")) for d in extra.values()]
+        alt = [a for a in alt if a]
+        if alt and (p is None or max(alt) > p): p = max(alt)
+    if p: prices[n] = round(min(p * rate, MAX_RUB))
 
 print("items", len(prices))
-top = sorted(prices.items(), key=lambda x: -x[1])[:10]
-for n, v in top: print(v, n)
-json.dump({"t": int(time.time()), "rate": rate, "p": prices}, open("prices.json", "w"), ensure_ascii=False, separators=(",", ":"))
+for n, v in sorted(prices.items(), key=lambda x: -x[1])[:15]: print(v, n)
+for n in ("AK-47 | Redline (Field-Tested)", "AWP | Asiimov (Field-Tested)", "★ Karambit | Doppler (Factory New)", "★ Karambit | Fade (Factory New)", "Glock-18 | Candy Apple (Factory New)"):
+    print("check", n, prices.get(n))
+json.dump({"t": int(time.time()), "rate": round(rate, 2), "p": prices}, open("prices.json", "w"), ensure_ascii=False, separators=(",", ":"))
