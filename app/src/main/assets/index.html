@@ -380,6 +380,18 @@ const SOURCES=[
  'https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/crates.json',
  'https://cdn.jsdelivr.net/gh/ByMykel/CSGO-API@main/public/api/en/crates.json'
 ];
+const PRICE_SRC=['https://raw.githubusercontent.com/belovsasa60337-ctrl/casebattle-app/main/prices.json','https://cdn.jsdelivr.net/gh/belovsasa60337-ctrl/casebattle-app@main/prices.json','prices.json'];
+const WEN={FN:'Factory New',MW:'Minimal Wear',FT:'Field-Tested',WW:'Well-Worn',BS:'Battle-Scarred'};
+let PRICES=null;
+async function loadPrices(){let c=null;try{c=JSON.parse(localStorage.getItem('cb_prices')||'null')}catch(e){}
+ if(c&&c.p&&Date.now()/1000-c.t<86400*2){PRICES=c.p;return}
+ for(const u of PRICE_SRC){try{const j=await fetchJSON(u);if(j&&j.p){PRICES=j.p;try{localStorage.setItem('cb_prices',JSON.stringify(j))}catch(e){}return}}catch(e){}}
+ if(c&&c.p)PRICES=c.p}
+const mhn=(n,w,st)=>{const vanilla=!n.includes(' | ');const base=st?(n.startsWith('★ ')?n.replace('★ ','★ StatTrak™ '):'StatTrak™ '+n):n;return vanilla?base:`${base} (${WEN[w]})`};
+function applyPrices(){if(!PRICES)return;
+ for(const s of DB.skins){const pw={};let any=false;for(const w of WEARS){const v=PRICES[mhn(s.n,w[0],false)];if(v){pw[w[0]]=Math.min(MAXP,v);any=true}}
+  if(!any)continue;s.pw=pw;
+  let tw=0,ev=0;for(const w of WEARS)if(pw[w[0]]){tw+=w[4];ev+=w[4]*pw[w[0]]}s.p=Math.max(1,Math.round(ev/tw))}}
 const DBKEY='cb_db_v3', SKEY='cb_save_v1';
 const TIERS={consumer:['Ширпотреб','#b0c3d9'],industrial:['Промышленное','#5e98d9'],milspec:['Армейское','#4b69ff'],restricted:['Запрещённое','#8847ff'],classified:['Засекреченное','#d32ce6'],covert:['Тайное','#eb4b4b'],rare:['★ Редкий особый','#e4ae39']};
 const TORD=['rare','covert','classified','restricted','milspec','industrial','consumer'];
@@ -419,7 +431,7 @@ const rnd=a=>a[Math.random()*a.length|0];
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0)/4294967296}
 window.imgErr=e=>{e.onerror=null;e.src=GUN};
 function tierOf(id){id=id||'';if(id.includes('ancient'))return'covert';if(id.includes('legendary'))return'classified';if(id.includes('mythical'))return'restricted';if(id.includes('uncommon'))return'industrial';if(id.includes('rare'))return'milspec';return'consumer'}
-const MAXP=1000000;
+const MAXP=1500000;
 function basePrice(n,t){const[a,b]=PR[t];let p=t==='rare'?2500+330000*Math.pow(hash(n),30):a*Math.pow(b/a,hash(n));for(const[re,m]of BOOST)if(re.test(n))p*=m;return Math.min(MAXP,Math.max(3,Math.round(p)))}
 const canST=n=>!/Gloves|Wraps/.test(n);
 function splitName(n){const i=n.indexOf(' | ');return i<0?[n,'Ванильный']:[n.slice(0,i),n.slice(i+3)]}
@@ -496,23 +508,23 @@ function buildCustom(){
  for(const[id,n,cat,bn,f,b,pool,a]of defs){if(pool.length<3)continue;
   let w;if(a==='half'){const ch=pool.filter(i=>DB.skins[i].t!=='covert'),cv=pool.filter(i=>DB.skins[i].t==='covert');if(!cv.length||!ch.length)continue;w=pool.map(i=>DB.skins[i].t==='covert'?.5/cv.length:.5/ch.length)}
   else{w=pool.map(i=>Math.pow(P(i),-a*.55));const s=w.reduce((x,y)=>x+y,0);w=w.map(x=>x/s)}
-  const ev=pool.reduce((s,i,k)=>s+w[k]*P(i),0)*1.083*1.1;
+  const ev=pool.reduce((s,i,k)=>s+w[k]*P(i),0)*(PRICES?1:1.083)*1.1;
   const base=DB.cases.find(x=>x.n===bn)||DB.cases[out.length%DB.cases.length]||{};
   out.push({id,n,cat,i:base.i||'',f,b,d:'',custom:true,pool:pool.map((i,k)=>({i,w:w[k]})).sort((x,y)=>P(y.i)-P(x.i)),price:Math.max(5,Math.ceil(ev*1.04/5)*5)})}
  return out}
 function pickPool(c){let r=Math.random(),a=0;for(const p of c.pool){a+=p.w;if(r<a)return DB.skins[p.i]}return DB.skins[c.pool[0].i]}
-function prepDB(){
+function prepDB(){applyPrices();
  DB.byId={};DB.cases.forEach(c=>{DB.byId[c.id]=c;const g={};c.items.forEach(i=>{const t=DB.skins[i].t;(g[t]=g[t]||[]).push(i)});if(c.rare.length)g.rare=(g.rare||[]).concat(c.rare);
   let tot=0;for(const t in g)tot+=TW[t];c.g=g;c.tp={};let ev=0;
   for(const t in g){c.tp[t]=TW[t]/tot;const avg=g[t].reduce((a,i)=>a+DB.skins[i].p,0)/g[t].length;ev+=c.tp[t]*avg}
-  c.price=Math.max(25,Math.ceil(ev*1.083*1.1*1.04/5)*5)});
- DB.targets=DB.skins.map(s=>s).sort((a,b)=>a.p-b.p);
+  c.price=Math.max(25,Math.ceil(ev*(PRICES?1:1.083)*1.1*1.04/5)*5)});
+ DB.targets=DB.skins.map(s=>s.pw?{...s,p:s.pw.FT||s.pw.MW||s.pw.WW||s.pw.FN||s.pw.BS}:s).sort((a,b)=>a.p-b.p);
  DB.newest=new Set(DB.cases.slice(0,3).map(c=>c.id));
  DB.custom=buildCustom();DB.custom.forEach(c=>DB.byId[c.id]=c);DB.all=[...DB.custom,...DB.cases];
 }
 
 /* ================= СОХРАНЕНИЕ ================= */
-const DEF={bal:1000,reg:false,avimg:'',nick:'Игрок',av:0,avc:0,xp:0,uid:1,inv:[],hist:[],daily:0,sound:true,fast:false,
+const DEF={bal:2000,reg:false,avimg:'',nick:'Игрок',av:0,avc:0,xp:0,uid:1,inv:[],hist:[],daily:0,sound:true,fast:false,
  st:{opened:0,bp:0,bw:0,up:0,uw:0,ct:0,wag:0,won:0,best:null}};
 let CUR='';try{CUR=localStorage.getItem('cb_cur')||''}catch(e){}
 const skey=()=>CUR?'cb_acc_'+CUR:SKEY;
@@ -542,9 +554,12 @@ function closeModal(){$('#modal').classList.remove('on')}
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal'&&!MLOCK)closeModal()});
 function itemCard(it,extra='',cls=''){const[w,s]=splitName(it.n);
  return `<div class="icard ${cls}" style="--rc:${it.c}" data-u="${it.u||''}"><div class="itop"><span class="wear">${it.st?'<b class="stt">ST</b> ':''}${it.w||''}</span><span class="ip">${it.p!=null?fmt(it.p):''}</span></div><img src="${esc(it.i||GUN)}" loading="lazy" onerror="imgErr(this)"><div class="iw">${esc(w)}</div><div class="is">${esc(s)}</div>${extra}</div>`}
-function makeItem(s,wk,vis){let W;if(wk)W=WEARS.find(w=>w[0]===wk);else{let r=Math.random(),a=0;for(const w of WEARS){a+=w[4];if(r<a){W=w;break}}W=W||WEARS[2]}
- const st=!wk&&canST(s.n)&&Math.random()<.15;
- return{u:vis?0:S.uid++,n:s.n,i:s.i,c:s.c,t:s.t,w:W[0],f:+(W[2]+Math.random()*(W[3]-W[2])).toFixed(4),st,p:Math.min(MAXP,Math.max(1,Math.round(s.p*W[5]*(st?1.7:1))))}}
+function makeItem(s,wk,vis){let W;const ok=w=>!s.pw||s.pw[w[0]];
+ if(wk)W=WEARS.find(w=>w[0]===wk&&ok(w))||WEARS.find(ok);else{const av=WEARS.filter(ok);const tot=av.reduce((a,w)=>a+w[4],0);let r=Math.random()*tot,a=0;for(const w of av){a+=w[4];if(r<a){W=w;break}}W=W||av[0]||WEARS[2]}
+ let st=!wk&&canST(s.n)&&Math.random()<.15;let p;
+ if(s.pw){p=st&&PRICES&&PRICES[mhn(s.n,W[0],true)];if(!p){st=st&&!PRICES;p=s.pw[W[0]]*(st?1.7:1)}}else p=s.p*W[5]*(st?1.7:1);
+ return{u:vis?0:S.uid++,n:s.n,i:s.i,c:s.c,t:s.t,w:W[0],f:+(W[2]+Math.random()*(W[3]-W[2])).toFixed(4),st,p:Math.min(MAXP,Math.max(1,Math.round(p)))}}
+
 function pickTier(c){let r=Math.random(),a=0;for(const t of TORD){if(!c.tp[t])continue;a+=c.tp[t];if(r<a)return t}return Object.keys(c.tp)[0]}
 function rollCase(c,vis){if(c.pool)return makeItem(pickPool(c),null,vis);const t=pickTier(c),arr=c.g[t];return makeItem(DB.skins[arr[Math.random()*arr.length|0]],null,vis)}
 function fillerVis(c){if(c.pool){const s=pickPool(c);return{n:s.n,i:s.i,c:s.c}}const t=pickTier(c);if(t==='rare')return{n:'★ | Редкий предмет',i:STAR,c:TIERS.rare[1]};const s=DB.skins[rnd(c.g[t])];return{n:s.n,i:s.i,c:s.c}}
@@ -1043,7 +1058,7 @@ function pageAdmin(){if(!isAdmin())return go('cases');
  else{DB=await loadRemote();if(DB){try{localStorage.setItem(DBKEY,JSON.stringify(DB))}catch(e){}}
   else{$('#ltxt').innerHTML='Не удалось загрузить базу CS2 (нужен интернет / GitHub).<br><br><button class="btn" onclick="location.reload()">Повторить</button> <button class="btn ghost" id="demoDB">Демо-режим</button>';
    await new Promise(r=>$('#demoDB').onclick=r);DB=fallbackDB()}}
- prepDB();loadAdmin();$('#loader').remove();go('cases');if(!S.reg)regModal();
+ $('#ltxt').textContent='Загружаю цены Steam…';await loadPrices();prepDB();loadAdmin();$('#loader').remove();go('cases');if(!S.reg)regModal();
  for(let i=0;i<14;i++){const c=rnd(DB.all);pushTicker(rollCase(c,true),rnd(BOTS))}
  setInterval(()=>{if(document.hidden)return;const c=rnd(DB.all);pushTicker(rollCase(c,true),rnd(BOTS))},2200);
 })();

@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - run: cp index.html app/src/main/assets/index.html && cp manifest.json icon-*.png app/src/main/assets/
+      - run: cp index.html app/src/main/assets/index.html && cp manifest.json icon-*.png prices.json app/src/main/assets/
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

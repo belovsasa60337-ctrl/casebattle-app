@@ -51,7 +51,9 @@ for n in names:
         alt = [pick(d.get(n), ("starting_at", "price", "highest_order", "last_7d")) for d in extra.values()]
         alt = [a for a in alt if a]
         if alt and (p is None or max(alt) > p): p = max(alt)
-    if p: prices[n] = round(min(p * rate, MAX_RUB))
+    if not p or " | " not in n and not n.startswith("★"): continue
+    if n.startswith(("Sticker", "Patch", "Sealed Graffiti", "Music Kit", "Souvenir", "Charm")): continue
+    prices[n] = round(min(p * rate, MAX_RUB))
 
 print("items", len(prices))
 for n, v in sorted(prices.items(), key=lambda x: -x[1])[:15]: print(v, n)
