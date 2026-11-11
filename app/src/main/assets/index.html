@@ -284,7 +284,7 @@ input[type=range]{width:100%;accent-color:var(--acc);padding:0;margin-top:8px}
 .two>*,.ulists>*,.upstage>*,.cols>*{min-width:0}
 .mchips{overflow-x:auto;justify-content:flex-start;scrollbar-width:none}.mchips::-webkit-scrollbar{display:none}
 .mchip{flex:0 0 auto}
-html,body{overflow-x:hidden}
+body{overflow-x:clip}
 .btn.steam{background:linear-gradient(135deg,#1b2838,#2a475e);color:#fff;border:1px solid #66c0f4;box-shadow:0 6px 20px #66c0f430}
 .btn.steam .ic{margin-right:6px}
 .steamtag{background:#1b2838;border:1px solid #66c0f4;border-radius:9px;padding:5px 10px;font-size:13px;color:#c7d5e0}
@@ -304,7 +304,7 @@ header{padding-top:env(safe-area-inset-top)}
 main{padding-bottom:calc(60px + env(safe-area-inset-bottom))}
 #toast{bottom:calc(24px + env(safe-area-inset-bottom))}
 input,select,textarea{font-size:16px}
-body{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+body{-webkit-text-size-adjust:100%;}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -384,9 +384,11 @@ const PRICE_SRC=['https://raw.githubusercontent.com/belovsasa60337-ctrl/casebatt
 const WEN={FN:'Factory New',MW:'Minimal Wear',FT:'Field-Tested',WW:'Well-Worn',BS:'Battle-Scarred'};
 let PRICES=null;
 async function loadPrices(){let c=null;try{c=JSON.parse(localStorage.getItem('cb_prices')||'null')}catch(e){}
- if(c&&c.p&&Date.now()/1000-c.t<86400*2){PRICES=c.p;return}
- for(const u of PRICE_SRC){try{const j=await fetchJSON(u);if(j&&j.p){PRICES=j.p;try{localStorage.setItem('cb_prices',JSON.stringify(j))}catch(e){}return}}catch(e){}}
- if(c&&c.p)PRICES=c.p}
+ const keep=j=>{try{localStorage.setItem('cb_prices',JSON.stringify(j))}catch(e){}};
+ const refresh=async()=>{for(const u of PRICE_SRC.slice(0,2)){try{const j=await fetchJSON(u);if(j&&j.p){keep(j);return}}catch(e){}}};
+ if(c&&c.p){PRICES=c.p;if(Date.now()/1000-c.t>86400)refresh();return}
+ try{const j=await fetchJSON('prices.json');if(j&&j.p){PRICES=j.p;keep(j);refresh();return}}catch(e){}
+ refresh().then(()=>{})}
 const mhn=(n,w,st)=>{const vanilla=!n.includes(' | ');const base=st?(n.startsWith('★ ')?n.replace('★ ','★ StatTrak™ '):'StatTrak™ '+n):n;return vanilla?base:`${base} (${WEN[w]})`};
 function applyPrices(){if(!PRICES)return;
  for(const s of DB.skins){const pw={};let any=false;for(const w of WEARS){const v=PRICES[mhn(s.n,w[0],false)];if(v){pw[w[0]]=Math.min(MAXP,v);any=true}}
