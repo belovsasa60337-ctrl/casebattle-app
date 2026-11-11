@@ -347,6 +347,22 @@ body{-webkit-text-size-adjust:100%;}
 .iprices th{text-align:left;color:var(--mut);font-weight:500;padding:6px 4px;border-bottom:1px solid var(--line)}
 .iprices td{padding:7px 4px;border-bottom:1px solid #ffffff0a}
 .iprices tr.cur td{background:#ffb02e14;font-weight:700}
+.adm-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin:10px 0 12px;flex-wrap:wrap}
+.adm-badge{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#ffb02e33,#ff6a0022);border:1px solid #ffb02e66;color:var(--acc);padding:6px 12px;border-radius:10px;font-weight:700;font-size:13px}
+.adm-badge.sub{background:#8b5cff22;border-color:#8b5cff66;color:#b89cff}
+.adm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.adm-stats .stat b{font-size:20px}
+@media(max-width:700px){.adm-stats{grid-template-columns:1fr 1fr}}
+.adm-tabs{width:100%;display:grid;grid-template-columns:repeat(4,1fr);margin-bottom:14px}
+.plgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+.plc{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;transition:.15s}
+.plc:hover{border-color:var(--acc);transform:translateY(-1px)}
+.plc .av{position:relative;width:42px;height:42px;font-size:18px;border-radius:12px;color:#fff;font-weight:900}
+.ondot{position:absolute;right:-3px;bottom:-3px;width:12px;height:12px;border-radius:50%;background:var(--good);border:2px solid var(--bg2)}
+.plm{flex:1;min-width:0;display:flex;flex-direction:column;font-size:14px}.plm b,.plm span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plm span{font-size:12px}
+.plv{text-align:right;display:flex;flex-direction:column;font-size:14px}.plv b{color:var(--acc)}.plv span{font-size:11px}
+.pcact{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.limbar{height:10px;border-radius:6px;background:var(--bg3);overflow:hidden;margin-top:10px}.limbar i{display:block;height:100%;background:linear-gradient(90deg,var(--good),var(--acc),var(--bad))}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -733,7 +749,7 @@ function mqLoad(){return new Promise((res,rej)=>{if(window.mqtt)return res();con
  add('https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js',()=>add('https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js',rej))})}
 async function mqConnect(){if(MQ.c)return;try{await mqLoad()}catch(e){toast('Не удалось загрузить онлайн-модуль','bad');return}
  MQ.c=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{clientId:'cb_'+Math.random().toString(16).slice(2,12),reconnectPeriod:3000,connectTimeout:12000,clean:true});
- MQ.c.on('connect',()=>{MQ.ok=true;MQ.c.subscribe([MQT+'rooms/+',MQT+'rooms/+/ctl',MQT+'admin/revoked']);mqSubMe();pubMe();if(isAdmin())MQ.c.subscribe(MQT+'players/+');lobbyDraw()});
+ MQ.c.on('connect',()=>{MQ.ok=true;MQ.c.subscribe([MQT+'rooms/+',MQT+'rooms/+/ctl',MQT+'admin/revoked']);mqSubMe();pubMe();if(isMaster())MQ.c.subscribe(MQT+'players/+');lobbyDraw()});
  MQ.c.on('close',()=>{MQ.ok=false;lobbyDraw()});
  MQ.c.on('message',(t,m)=>{if(t===MQT+'admin/revoked')return onRevoked(m.toString());if(t.startsWith(MQT+'cmd/'))return onCmds(m.toString());if(t.startsWith(MQT+'players/')){try{const d=JSON.parse(m.toString());if(d&&d.pid)MQ.players[d.pid]=d}catch(e){}if(PAGE==='admin'&&window.plDraw)plDraw();return}const parts=t.split('/'),id=parts[3],ctl=parts[4]==='ctl';let d=null;const s=m.toString();if(s)try{d=JSON.parse(s)}catch(e){return}
   if(ctl)return onCtl(id,d);
@@ -1162,31 +1178,31 @@ function devPid(){let d='';try{d=localStorage.getItem('cb_pid')||''}catch(e){}if
 function pid(){if(S.steam)return S.steam;if(!S.pid){S.pid=devPid();save()}return S.pid}
 var PUBT=null;function pubMe(){clearTimeout(PUBT);PUBT=setTimeout(()=>{if(!MQ.c||!MQ.ok||!S.reg)return;
  MQ.c.publish(MQT+'players/'+pid(),JSON.stringify({pid:pid(),n:S.nick,b:Math.floor(S.bal),iv:Math.floor(invSum()),s:!!S.steam,t:Date.now()}),{retain:true,qos:0})},3000)}
-let ADMROLE='',ADMGRANT='',ADMGID='';
+let ADMROLE='',ADMGRANT='',ADMGID='',ADMLIM=0;
 const isAdmin=()=>!!ADMK;const isMaster=()=>ADMROLE==='master';
 const dec=b=>new TextDecoder().decode(b);
 let REVOKED=[];try{REVOKED=JSON.parse(localStorage.getItem('cb_revoked')||'[]')}catch(e){}
 async function checkGrant(gs){const m=String(gs).match(/^([\w-]+)~([\w-]+)$/);if(!m)return null;
  if(!await crypto.subtle.verify(ECP,await pubKey(),ub64u(m[2]),enc(m[1])))return null;const g=JSON.parse(dec(ub64u(m[1])));return g&&g.g?g:null}
 async function parseAdmin(t){t=t.replace(/\s+/g,'');
- if(t.startsWith('CBADMIN-')){const k=await admKey(t);const test=enc('check');if(!await crypto.subtle.verify(ECP,await pubKey(),await crypto.subtle.sign(ECP,k,test),test))throw 0;return{k,role:'master'}}
+ if(t.startsWith('CBADMIN-')){if(OWNER_IDS.length&&!OWNER_IDS.includes(pid()))throw 'owner';const k=await admKey(t);const test=enc('check');if(!await crypto.subtle.verify(ECP,await pubKey(),await crypto.subtle.sign(ECP,k,test),test))throw 0;return{k,role:'master'}}
  if(t.startsWith('CBSUB-')){const o=JSON.parse(dec(ub64u(t.slice(6))));const g=await checkGrant(o.gr);if(!g)throw 0;if(REVOKED.includes(g.g))throw 'rev';
   const k=await crypto.subtle.importKey('pkcs8',Uint8Array.from(atob(o.k),c=>c.charCodeAt(0)),{name:'ECDSA',namedCurve:'P-256'},false,['sign']);return{k,role:'sub',gr:o.gr,g}}
  throw 0}
 async function loadAdmin(){let t='';try{t=localStorage.getItem('cb_admin')||''}catch(e){}if(!t)return;
- try{const a=await parseAdmin(t);ADMK=a.k;ADMROLE=a.role;ADMGRANT=a.gr||'';ADMGID=a.g?a.g.g:''}catch(e){ADMK=null;if(e==='rev'){localStorage.removeItem('cb_admin');toast('Админку у тебя забрали','bad')}}updAdminNav()}
+ try{const a=await parseAdmin(t);ADMK=a.k;ADMROLE=a.role;ADMGRANT=a.gr||'';ADMGID=a.g?a.g.g:'';ADMLIM=a.g?(a.g.l||25e7):0}catch(e){ADMK=null;if(e==='rev'){localStorage.removeItem('cb_admin');toast('Админку у тебя забрали','bad')}}updAdminNav()}
 function dropIfRevoked(){if(ADMROLE==='sub'&&REVOKED.includes(ADMGID)){ADMK=null;ADMROLE='';localStorage.removeItem('cb_admin');updAdminNav();toast('Админку у тебя забрали','bad');if(PAGE==='admin')go('cases')}}
 async function onRevoked(s){try{const o=JSON.parse(s);if(!await crypto.subtle.verify(ECP,await pubKey(),ub64u(o.sig),enc(JSON.stringify(o.ids))))return;
  REVOKED=o.ids;localStorage.setItem('cb_revoked',JSON.stringify(REVOKED));dropIfRevoked()}catch(e){}}
 async function publishRevoked(){if(!isMaster())return;const ids=[...new Set(REVOKED)];REVOKED=ids;const sig=b64u(await crypto.subtle.sign(ECP,ADMK,enc(JSON.stringify(ids))));
  localStorage.setItem('cb_revoked',JSON.stringify(ids));await mqConnect();if(!MQ.c)return toast('Нет связи с сервером — отзыв дойдёт до игроков позже','bad');const send=()=>MQ.c.publish(MQT+'admin/revoked',JSON.stringify({ids,sig}),{retain:true,qos:1});MQ.ok?send():MQ.c.once('connect',send)}
-async function makeGrant(name){const kp=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
- const pub=await crypto.subtle.exportKey('jwk',kp.publicKey);const g={g:'G'+Math.random().toString(36).slice(2,9).toUpperCase(),n:String(name).slice(0,20),x:pub.x,y:pub.y,d:Date.now()};
+async function makeGrant(name,lim){const kp=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+ const pub=await crypto.subtle.exportKey('jwk',kp.publicKey);const g={g:'G'+Math.random().toString(36).slice(2,9).toUpperCase(),n:String(name).slice(0,20),x:pub.x,y:pub.y,d:Date.now(),l:Math.floor(lim||25e7)};
  const gd=b64u(enc(JSON.stringify(g)));const gr=gd+'~'+b64u(await crypto.subtle.sign(ECP,ADMK,enc(gd)));
  const k=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey('pkcs8',kp.privateKey))));
  return{g,code:'CBSUB-'+b64u(enc(JSON.stringify({k,gr})))}}
 function updAdminNav(){let b=$('#nav [data-p="admin"]');if(isAdmin()&&!b){$('#nav').insertAdjacentHTML('beforeend','<button data-p="admin"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Админ</button>');$('#nav [data-p="admin"]').onclick=()=>go('admin')}else if(!isAdmin()&&b)b.remove()}
-async function makeCode(amount,to){const p={a:Math.floor(amount),t:to||'*',n:Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
+async function makeCode(amount,to){if(!isMaster())throw 'no';const p={a:Math.floor(amount),t:to||'*',n:Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
  const sig=await crypto.subtle.sign(ECP,ADMK,enc(data));return 'CB-'+data+'.'+b64u(sig)+(ADMROLE==='sub'?'.'+ADMGRANT:'')}
 async function redeem(code){code=code.replace(/\s+/g,'');const m=code.match(/^CB-([\w-]+)\.([\w-]+)(?:\.([\w-]+~[\w-]+))?$/);if(!m)return toast('Неверный код','bad');
  let ok=false,p;try{let key=await pubKey();
@@ -1209,7 +1225,7 @@ async function onCmds(s){let o;try{o=JSON.parse(s)}catch(e){return}if(!o||!Array
   else if(c.op==='zero'){S.bal=0;if(c.inv)S.inv=[];toast('Администратор обнулил баланс'+(c.inv?' и инвентарь':''),'bad')}
   else if(c.op==='give'){S.bal+=c.a;toast('Администратор начислил '+fmt(c.a),'good');bigS()}
   save();bump();if(PAGE==='profile')pageProfile()}}
-async function sendCmd(to,op,a,inv){if(!isAdmin())return;await mqConnect();if(!MQ.c||!MQ.ok)return toast('Нет связи с сервером, попробуй позже','bad');
+async function sendCmd(to,op,a,inv){if(!isMaster())return;await mqConnect();if(!MQ.c||!MQ.ok)return toast('Нет связи с сервером, попробуй позже','bad');
  const p={p:to,op,a:Math.floor(a||0),inv:!!inv,n:'c'+Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
  const str=data+'.'+b64u(await crypto.subtle.sign(ECP,ADMK,enc(data)))+(ADMROLE==='sub'?'.'+ADMGRANT:'');
  const all=JSON.parse(localStorage.getItem('cb_cmds')||'{}');const L=(all[to]||[]).concat(str).slice(-20);all[to]=L;localStorage.setItem('cb_cmds',JSON.stringify(all));
@@ -1218,64 +1234,102 @@ async function sendCmd(to,op,a,inv){if(!isAdmin())return;await mqConnect();if(!M
 function adminUnlock(){openModal(`<h2 style="margin:0 0 8px">Вход в админку</h2><p class="mut">Вставь ключ администратора (CBADMIN-…) или ключ помощника, который тебе выдали (CBSUB-…).</p><button class="btn sm ghost" id="akp" style="margin-bottom:6px">Вставить из буфера</button><textarea id="akey" rows="4" style="width:100%;font:inherit;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:10px"></textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" id="ago">Войти</button></div>`);
  $('#akp').onclick=()=>pasteInto('#akey');
  $('#ago').onclick=async()=>{const t=$('#akey').value.replace(/\s+/g,'');if(!/^CB(ADMIN|SUB)-/.test(t))return toast('Это не ключ админа','bad');
-  try{const a=await parseAdmin(t);ADMK=a.k;ADMROLE=a.role;ADMGRANT=a.gr||'';ADMGID=a.g?a.g.g:'';localStorage.setItem('cb_admin',t);updAdminNav();closeModal();toast(a.role==='master'?'Админка открыта':'Ты помощник админа','good');go('admin')}
-  catch(e){toast(e==='rev'?'Этот ключ отозван':'Неверный ключ','bad')}}}
+  try{const a=await parseAdmin(t);ADMK=a.k;ADMROLE=a.role;ADMGRANT=a.gr||'';ADMGID=a.g?a.g.g:'';ADMLIM=a.g?(a.g.l||25e7):0;localStorage.setItem('cb_admin',t);updAdminNav();closeModal();toast(a.role==='master'?'Админка открыта':'Ты помощник админа','good');go('admin')}
+  catch(e){toast(e==='rev'?'Этот ключ отозван':e==='owner'?'Главный ключ работает только у владельца':'Неверный ключ','bad')}}}
 let logoTaps=[];
 function logoTap(){const n=Date.now();logoTaps=logoTaps.filter(t=>n-t<2500);logoTaps.push(n);if(logoTaps.length>=7&&!isAdmin()){logoTaps=[];adminUnlock();return}go('cases')}
+const OWNER_IDS=[]; // ID владельца: главный ключ работает только на этих аккаунтах (если список не пустой)
+const big=v=>{v=Math.floor(v);return v>=1e9?(v/1e9).toFixed(v%1e9?1:0)+' млрд':v>=1e6?(v/1e6).toFixed(v%1e6?1:0)+' млн':v>=1e3?(v/1e3).toFixed(v%1e3?1:0)+' тыс':String(v)};
+function subLimitInfo(){const g=ADMGID,lim=ADMLIM||250e6;const day=new Date().toISOString().slice(0,10);let u={};try{u=JSON.parse(localStorage.getItem('cb_sublim')||'{}')}catch(e){}
+ const k=g+'|'+day,used=Math.max(u[k]||0,(S.subUse&&S.subUse[k])||0);return{lim,used,left:Math.max(0,lim-used),k}}
+function subUse(a){const i=subLimitInfo();let u={};try{u=JSON.parse(localStorage.getItem('cb_sublim')||'{}')}catch(e){}u[i.k]=i.used+a;localStorage.setItem('cb_sublim',JSON.stringify(u));S.subUse=S.subUse||{};S.subUse[i.k]=i.used+a}
+let ADM_TAB='players';
 function pageAdmin(){if(!isAdmin())return go('cases');
- const hist=JSON.parse(localStorage.getItem('cb_codes')||'[]');
- main.innerHTML=`<div class="hero"><h1>Админка${isMaster()?'':' <span class="mut" style="font-size:16px">· помощник</span>'}</h1><p>Выдача денег игрокам через подписанные коды. Подделать код без ключа нельзя.</p></div>
- <div class="two"><div class="panel"><h3 style="margin:0 0 12px">Выдать деньги игроку</h3>
-  <div class="field"><label>ID игрока (в его профиле)</label><div class="row"><input id="ato" placeholder="Например 7656119… или PAB12CD3" style="flex:1;min-width:0"><button class="btn sm ghost" id="atop">Вставить</button><button class="btn sm ghost" id="atome">Мой ID</button></div></div>
-  <label class="chk" style="margin-bottom:10px"><input type="checkbox" id="aall"> Код для любого игрока (каждый может активировать 1 раз)</label>
-  <div class="field"><label>Сумма</label><input id="aam" type="number" min="1" value="1000"><div class="qb"><button data-v="500">500</button><button data-v="1000">1000</button><button data-v="5000">5000</button><button data-v="10000">10к</button><button data-v="100000">100к</button></div></div>
-  <button class="btn big" id="agen" style="width:100%">Создать код</button>
-  <div id="aout" style="margin-top:12px"></div></div>
- <div class="panel" style="grid-column:1/-1"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 style="margin:0">Игроки</h3><input id="plq" placeholder="Поиск по нику или ID" style="flex:1;min-width:140px;max-width:280px"></div>
-  <div class="mut" style="font-size:12px;margin-bottom:8px">Все, кто заходил в игру с интернетом, включая гостей. Нажми на игрока, чтобы подставить его ID.</div><div class="hist" id="pllist" style="max-height:360px;overflow:auto"></div></div>
- <div class="panel"><h3 style="margin:0 0 12px">Забрать / начислить напрямую</h3>
-  <div class="mut" style="font-size:12px;margin-bottom:10px">Без кодов: деньги спишутся или начислятся у игрока сами, как только он будет в игре с интернетом.</div>
-  <div class="field"><label>ID игрока</label><div class="row"><input id="tto" placeholder="ID из профиля игрока" style="flex:1;min-width:0"><button class="btn sm ghost" id="ttop">Вставить</button></div></div>
-  <div class="field"><label>Сумма</label><input id="tam" type="number" min="1" value="1000"></div>
-  <label class="chk" style="margin-bottom:10px"><input type="checkbox" id="tinv"> Забрать ещё и все скины из инвентаря</label>
-  <div class="row"><button class="btn red" id="ttake" style="flex:1">Забрать</button><button class="btn ghost" id="tzero" style="flex:1">Обнулить баланс</button><button class="btn green" id="tgive" style="flex:1">Начислить</button></div></div>
- <div class="panel"><h3 style="margin:0 0 12px">Себе</h3><div class="row"><input id="aself" type="number" value="10000" style="flex:1"><button class="btn green" id="aselfb">Начислить</button></div>
-  <div class="row" style="margin-top:10px"><input id="aset" type="number" placeholder="Точный баланс" style="flex:1"><button class="btn ghost" id="asetb">Установить</button></div>
-  <h3 style="margin:18px 0 10px">Созданные коды</h3><div class="hist" id="ahist">${hist.slice(0,30).map(h=>`<div class="hl" style="--rc:var(--acc)"><div class="t">${fmt(h.a)} → ${esc(h.t==='*'?'любой':h.t)}</div><button class="btn sm ghost" data-c="${esc(h.c)}">Копировать</button></div>`).join('')||'<div class="mut">Пока нет</div>'}</div>
-  ${isMaster()?`<h3 style="margin:18px 0 10px">Помощники-админы</h3>
-  <div class="row"><input id="gname" placeholder="Имя помощника" style="flex:1;min-width:0"><button class="btn sm" id="ggive">Выдать админку</button></div>
-  <div id="gout" style="margin-top:8px"></div>
-  <div class="hist" id="glist" style="margin-top:8px"></div>`:''}
-  <button class="btn ghost sm" id="aexit" style="margin-top:16px;color:var(--bad)">Выйти из админки на этом устройстве</button></div></div>`;
- $$('.qb [data-v]').forEach(b=>b.onclick=()=>$('#aam').value=b.dataset.v);
- $('#atop').onclick=()=>pasteInto('#ato');$('#atome').onclick=()=>{$('#ato').value=pid()};
- $('#aall').onchange=e=>$('#ato').disabled=e.target.checked;
- const copy=t=>copyText(t);
- $$('#ahist [data-c]').forEach(b=>b.onclick=()=>copy(b.dataset.c));
- $('#agen').onclick=async()=>{const a=Math.floor(+$('#aam').value),all=$('#aall').checked,to=$('#ato').value.replace(/\s+/g,'');if(!(a>0))return toast('Укажи сумму','bad');if(!all&&!to)return toast('Укажи ID игрока','bad');
-  const code=await makeCode(a,all?'*':to);hist.unshift({a,t:all?'*':to,c:code,d:Date.now()});localStorage.setItem('cb_codes',JSON.stringify(hist.slice(0,100)));
-  $('#aout').innerHTML=`<div class="mut" style="font-size:12px;margin-bottom:6px">Отправь этот код игроку — он вводит его в профиле:</div><textarea readonly rows="4" style="width:100%;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:10px">${code}</textarea><button class="btn" id="acp" style="width:100%;margin-top:6px">Копировать код</button>`;
-  $('#acp').onclick=()=>copy(code);$('#aout textarea').onclick=e=>e.target.select()};
- mqConnect().then(()=>{if(MQ.c)MQ.c.subscribe(MQT+'players/+')});
- const ago=t=>{const m=Math.floor((Date.now()-t)/60000);return m<2?'<span style="color:var(--good)">онлайн</span>':m<60?m+' мин назад':m<1440?Math.floor(m/60)+' ч назад':Math.floor(m/1440)+' дн назад'};
- window.plDraw=()=>{const L=$('#pllist');if(!L)return;const q=($('#plq').value||'').toLowerCase();const arr=Object.values(MQ.players).filter(p=>!q||String(p.n).toLowerCase().includes(q)||String(p.pid).toLowerCase().includes(q)).sort((a,b)=>b.t-a.t).slice(0,150);
-  L.innerHTML=arr.map(p=>`<div class="hl plr" style="--rc:${p.s?'#66c0f4':'var(--line)'};cursor:pointer" data-pid="${esc(p.pid)}"><div class="t"><b>${esc(p.n)}</b>${p.pid===pid()?' <span class="mut">(вы)</span>':''}<br><span class="mut" style="font-size:11px">${esc(p.pid)} · ${p.s?'Steam':'гость'} · ${ago(p.t)}</span></div><div style="text-align:right;font-size:12px"><b style="color:var(--acc)">${fmt(p.b)}</b><br><span class="mut">скины ${fmt(p.iv||0)}</span></div></div>`).join('')||`<div class="mut">${MQ.ok?'Пока никого не видно':'Подключение…'}</div>`;
-  $$('#pllist .plr').forEach(e=>e.onclick=()=>{$('#tto').value=e.dataset.pid;$('#ato').value=e.dataset.pid;toast('ID подставлен');$('#tto').scrollIntoView({block:'center',behavior:'smooth'})})};
- $('#plq').oninput=plDraw;plDraw();
- $('#ttop').onclick=()=>pasteInto('#tto');
- const tgo=async(op)=>{const to=$('#tto').value.replace(/\s+/g,''),a=Math.floor(+$('#tam').value),inv=$('#tinv').checked;if(!to)return toast('Укажи ID игрока','bad');if(op!=='zero'&&!(a>0))return toast('Укажи сумму','bad');
-  if(await sendCmd(to,op,a,inv))toast(op==='give'?'Начисление отправлено':'Списание отправлено','good')};
- $('#ttake').onclick=()=>tgo('take');$('#tzero').onclick=()=>tgo('zero');$('#tgive').onclick=()=>tgo('give');
-$('#aselfb').onclick=()=>{const v=Math.floor(+$('#aself').value);if(v){S.bal+=v;save();bump();toast('+'+fmt(v),'good')}};
- $('#asetb').onclick=()=>{const v=Math.floor(+$('#aset').value);if(v>=0){S.bal=v;save();bump();toast('Баланс: '+fmt(v),'good')}};
- if(isMaster()){const G=()=>JSON.parse(localStorage.getItem('cb_grants')||'[]');
-  const gdraw=()=>{const L=G();$('#glist').innerHTML=L.map(g=>{const rv=REVOKED.includes(g.g);return`<div class="hl" style="--rc:${rv?'var(--bad)':'var(--good)'}"><div class="t"><b>${esc(g.n)}</b> <span class="mut">${g.g}${rv?' · отозвана':''}</span></div>${rv?`<button class="btn sm ghost" data-ret="${g.g}">Вернуть</button>`:`<button class="btn sm red" data-rev="${g.g}">Забрать</button>`}</div>`}).join('')||'<div class="mut">Пока никому не выдана</div>';
+ if(!isMaster())return pageSubAdmin();
+ const tabs=[['players','Игроки'],['codes','Коды'],['helpers','Помощники'],['me','Себе']];
+ main.innerHTML=`<div class="adm-head"><div><div class="mut" style="font-size:12px;letter-spacing:1px">ПАНЕЛЬ ВЛАДЕЛЬЦА</div><h1 style="font-size:28px;font-weight:900">Админка</h1></div><span class="adm-badge">${ic('upgrade')} Полный доступ</span></div>
+ <div class="adm-stats" id="admst"></div>
+ <div class="seg adm-tabs" id="admtabs">${tabs.map(([k,n])=>`<button data-t="${k}" class="${ADM_TAB===k?'on':''}">${n}</button>`).join('')}</div>
+ <div id="admbody"></div>`;
+ $$('#admtabs button').forEach(b=>b.onclick=()=>{ADM_TAB=b.dataset.t;pageAdmin()});
+ mqConnect().then(()=>{if(MQ.c){MQ.c.subscribe(MQT+'players/+');}});
+ try{const c=JSON.parse(localStorage.getItem('cb_players')||'{}');for(const k in c)if(!MQ.players[k]||MQ.players[k].t<c[k].t)MQ.players[k]=c[k]}catch(e){}
+ const stats=()=>{const P=Object.values(MQ.players),on=P.filter(p=>Date.now()-p.t<120000).length,sum=P.reduce((a,p)=>a+(p.b||0),0),inv=P.reduce((a,p)=>a+(p.iv||0),0);
+  $('#admst').innerHTML=`<div class="stat"><span>Игроков всего</span><b>${P.length}</b></div><div class="stat"><span>Онлайн сейчас</span><b style="color:var(--good)">${on}</b></div><div class="stat"><span>Деньги у игроков</span><b>${big(sum)} ₽</b></div><div class="stat"><span>Скины у игроков</span><b>${big(inv)} ₽</b></div>`};
+ stats();
+ const B=$('#admbody');
+ if(ADM_TAB==='players'){
+  B.innerHTML=`<div class="toolbar"><input id="plq" placeholder="Поиск по нику или ID"><select id="pls"><option value="t">Недавно в игре</option><option value="b">Богатые</option><option value="iv">Дорогие инвентари</option><option value="n">По нику</option></select></div><div class="plgrid" id="pllist"></div>`;
+  const ago=t=>{const m=Math.floor((Date.now()-t)/60000);return m<2?'онлайн':m<60?m+' мин назад':m<1440?Math.floor(m/60)+' ч назад':Math.floor(m/1440)+' дн назад'};
+  window.plDraw=()=>{if(ADM_TAB!=='players'||!$('#pllist'))return;stats();try{localStorage.setItem('cb_players',JSON.stringify(MQ.players))}catch(e){}
+   const q=($('#plq').value||'').toLowerCase(),so=$('#pls').value;let arr=Object.values(MQ.players).filter(p=>!q||String(p.n).toLowerCase().includes(q)||String(p.pid).toLowerCase().includes(q));
+   arr.sort(so==='b'?(a,b)=>b.b-a.b:so==='iv'?(a,b)=>(b.iv||0)-(a.iv||0):so==='n'?(a,b)=>String(a.n).localeCompare(String(b.n)):(a,b)=>b.t-a.t);
+   $('#pllist').innerHTML=arr.slice(0,300).map(p=>{const on=Date.now()-p.t<120000;return`<div class="plc" data-pid="${esc(p.pid)}"><div class="av" style="background:${p.s?'#1b2838':'#2a2f45'}">${initial(p.n)}${on?'<i class="ondot"></i>':''}</div>
+    <div class="plm"><b>${esc(p.n)}${p.pid===pid()?' <span class="mut">(вы)</span>':''}</b><span class="mut">${p.s?'Steam':'Гость'} · ${ago(p.t)}</span></div><div class="plv"><b>${big(p.b)} ₽</b><span class="mut">скины ${big(p.iv||0)} ₽</span></div></div>`}).join('')
+    ||`<div class="empty" style="grid-column:1/-1">${MQ.ok?'Игроков пока не видно. Они появятся, когда зайдут в игру с интернетом.':'Подключение к серверу…'}</div>`;
+   $$('#pllist .plc').forEach(e=>e.onclick=()=>playerCard(e.dataset.pid))};
+  $('#plq').oninput=plDraw;$('#pls').onchange=plDraw;plDraw()}
+ else if(ADM_TAB==='codes'){const hist=JSON.parse(localStorage.getItem('cb_codes')||'[]');
+  B.innerHTML=`<div class="two"><div class="panel"><h3 style="margin:0 0 6px">Код на деньги</h3><div class="mut" style="font-size:12px;margin-bottom:12px">Игрок вводит код в профиле в поле «Промокод».</div>
+   <div class="field"><label>ID игрока</label><div class="row"><input id="ato" placeholder="ID из профиля" style="flex:1;min-width:0"><button class="btn sm ghost" id="atop">Вставить</button></div></div>
+   <label class="chk" style="margin-bottom:10px"><input type="checkbox" id="aall"> Для любого игрока (каждый активирует 1 раз)</label>
+   <div class="field"><label>Сумма</label><input id="aam" type="number" min="1" value="10000"><div class="qb">${[1e4,1e5,1e6,1e7,1e8].map(v=>`<button data-v="${v}">${big(v)}</button>`).join('')}</div></div>
+   <button class="btn big" id="agen" style="width:100%">Создать код</button><div id="aout" style="margin-top:12px"></div></div>
+   <div class="panel"><h3 style="margin:0 0 12px">Созданные коды</h3><div class="hist" id="ahist">${hist.slice(0,40).map(h=>`<div class="hl" style="--rc:var(--acc)"><div class="t">${fmt(h.a)} → ${esc(h.t==='*'?'любой':h.t)}</div><button class="btn sm ghost" data-c="${esc(h.c)}">Копировать</button></div>`).join('')||'<div class="mut">Пока нет</div>'}</div></div></div>`;
+  $$('.qb [data-v]').forEach(b=>b.onclick=()=>$('#aam').value=b.dataset.v);$('#atop').onclick=()=>pasteInto('#ato');$('#aall').onchange=e=>$('#ato').disabled=e.target.checked;
+  $$('#ahist [data-c]').forEach(b=>b.onclick=()=>copyText(b.dataset.c));
+  $('#agen').onclick=async()=>{const a=Math.floor(+$('#aam').value),all=$('#aall').checked,to=$('#ato').value.replace(/\s+/g,'');if(!(a>0))return toast('Укажи сумму','bad');if(!all&&!to)return toast('Укажи ID игрока','bad');
+   const code=await makeCode(a,all?'*':to);hist.unshift({a,t:all?'*':to,c:code,d:Date.now()});localStorage.setItem('cb_codes',JSON.stringify(hist.slice(0,100)));
+   $('#aout').innerHTML=`<textarea readonly rows="4" style="width:100%;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:10px">${code}</textarea><button class="btn" id="acp" style="width:100%;margin-top:6px">Копировать код</button>`;$('#acp').onclick=()=>copyText(code)}}
+ else if(ADM_TAB==='helpers'){const G=()=>JSON.parse(localStorage.getItem('cb_grants')||'[]');
+  B.innerHTML=`<div class="two"><div class="panel"><h3 style="margin:0 0 6px">Выдать урезанную админку</h3><div class="mut" style="font-size:12px;margin-bottom:12px">Помощник может только начислять деньги <b>себе</b> в пределах дневного лимита. Игроков не видит, никому не выдаёт и не забирает.</div>
+   <div class="field"><label>Имя помощника</label><input id="gname" placeholder="Например Вася"></div>
+   <div class="field"><label>Лимит в день</label><input id="glim" type="number" value="250000000"><div class="qb">${[1e7,5e7,1e8,25e7,5e8].map(v=>`<button data-l="${v}">${big(v)}</button>`).join('')}</div></div>
+   <button class="btn big" id="ggive" style="width:100%">Создать ключ помощника</button><div id="gout" style="margin-top:10px"></div></div>
+   <div class="panel"><h3 style="margin:0 0 12px">Помощники</h3><div class="hist" id="glist"></div></div></div>`;
+  $$('[data-l]').forEach(b=>b.onclick=()=>$('#glim').value=b.dataset.l);
+  const gdraw=()=>{$('#glist').innerHTML=G().map(g=>{const rv=REVOKED.includes(g.g);return`<div class="hl" style="--rc:${rv?'var(--bad)':'var(--good)'}"><div class="t"><b>${esc(g.n)}</b><br><span class="mut" style="font-size:11px">${g.g} · лимит ${big(g.lim||25e7)}/день${rv?' · отозвана':''}</span></div>${rv?`<button class="btn sm ghost" data-ret="${g.g}">Вернуть</button>`:`<button class="btn sm red" data-rev="${g.g}">Забрать</button>`}</div>`}).join('')||'<div class="mut">Пока никому не выдана</div>';
    $$('[data-rev]').forEach(b=>b.onclick=async()=>{REVOKED.push(b.dataset.rev);await publishRevoked();toast('Админка забрана','good');gdraw()});
    $$('[data-ret]').forEach(b=>b.onclick=async()=>{REVOKED=REVOKED.filter(x=>x!==b.dataset.ret);await publishRevoked();toast('Права возвращены','good');gdraw()})};gdraw();
-  $('#ggive').onclick=async()=>{const n=$('#gname').value.trim();if(!n)return toast('Впиши имя','bad');const {g,code}=await makeGrant(n);const L=G();L.unshift({g:g.g,n:g.n,d:g.d});localStorage.setItem('cb_grants',JSON.stringify(L));
-   $('#gout').innerHTML=`<div class="mut" style="font-size:12px;margin-bottom:6px">Отправь помощнику — он вставляет это после 7 нажатий на логотип:</div><textarea readonly rows="3" style="width:100%;font-size:11px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:8px">${code}</textarea><button class="btn sm" id="gcp" style="width:100%;margin-top:6px">Копировать</button>`;
+  $('#ggive').onclick=async()=>{const n=$('#gname').value.trim(),lim=Math.floor(+$('#glim').value);if(!n)return toast('Впиши имя','bad');if(!(lim>0))return toast('Укажи лимит','bad');
+   const {g,code}=await makeGrant(n,lim);const L=G();L.unshift({g:g.g,n:g.n,d:g.d,lim});localStorage.setItem('cb_grants',JSON.stringify(L));
+   $('#gout').innerHTML=`<div class="mut" style="font-size:12px;margin-bottom:6px">Отправь помощнику. Он вставляет ключ после 7 нажатий на логотип:</div><textarea readonly rows="3" style="width:100%;font-size:11px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:8px">${code}</textarea><button class="btn sm" id="gcp" style="width:100%;margin-top:6px">Копировать</button>`;
    $('#gcp').onclick=()=>copyText(code);$('#gname').value='';gdraw()}}
- $('#aexit').onclick=()=>{localStorage.removeItem('cb_admin');ADMK=null;updAdminNav();go('cases')}}
+ else{B.innerHTML=`<div class="two"><div class="panel"><h3 style="margin:0 0 12px">Мой баланс: <span style="color:var(--acc)">${fmt(S.bal)}</span></h3>
+   <div class="field"><label>Начислить себе</label><div class="row"><input id="aself" type="number" value="1000000" style="flex:1"><button class="btn green" id="aselfb">Начислить</button></div><div class="qb" style="margin-top:6px">${[1e6,1e7,1e8,1e9].map(v=>`<button data-s="${v}">+${big(v)}</button>`).join('')}</div></div>
+   <div class="field"><label>Точный баланс</label><div class="row"><input id="aset" type="number" placeholder="Например 0" style="flex:1"><button class="btn ghost" id="asetb">Установить</button></div></div></div>
+   <div class="panel"><h3 style="margin:0 0 12px">Устройство</h3><div class="mut" style="font-size:13px">Твой ID: <b style="color:var(--txt);user-select:all">${pid()}</b></div><div class="mut" style="font-size:12px;margin:8px 0 14px">${OWNER_IDS.length?'Главный ключ привязан к аккаунтам владельца.':'Главный ключ пока не привязан к аккаунту.'}</div>
+   <button class="btn ghost" id="aexit" style="color:var(--bad);width:100%">Выйти из админки на этом устройстве</button></div></div>`;
+  $$('[data-s]').forEach(b=>b.onclick=()=>{S.bal+=+b.dataset.s;save();bump();toast('+'+fmt(+b.dataset.s),'good');pageAdmin()});
+  $('#aselfb').onclick=()=>{const v=Math.floor(+$('#aself').value);if(v){S.bal+=v;save();bump();toast('+'+fmt(v),'good');pageAdmin()}};
+  $('#asetb').onclick=()=>{const v=Math.floor(+$('#aset').value);if(v>=0){S.bal=v;save();bump();toast('Баланс: '+fmt(v),'good');pageAdmin()}};
+  $('#aexit').onclick=()=>{localStorage.removeItem('cb_admin');ADMK=null;ADMROLE='';updAdminNav();go('cases')}}}
+function playerCard(id){const p=MQ.players[id];if(!p)return;
+ openModal(`<div class="row" style="justify-content:space-between;align-items:flex-start"><div class="row"><div class="av" style="width:54px;height:54px;font-size:26px;border-radius:16px;background:${p.s?'#1b2838':'#2a2f45'}">${initial(p.n)}</div><div><h2 style="margin:0">${esc(p.n)}</h2><div class="mut" style="font-size:12px;user-select:all">${esc(p.pid)}</div><div class="mut" style="font-size:12px">${p.s?'Steam':'Гость'} · ${new Date(p.t).toLocaleString('ru-RU')}</div></div></div><button class="btn sm ghost" onclick="closeModal()">Закрыть</button></div>
+ <div class="stats" style="grid-template-columns:1fr 1fr"><div class="stat"><span>Баланс</span><b style="color:var(--acc)">${fmt(p.b)}</b></div><div class="stat"><span>Скины</span><b>${fmt(p.iv||0)}</b></div></div>
+ <div class="field" style="margin-top:14px"><label>Сумма</label><input id="pcam" type="number" value="100000"><div class="qb">${[1e4,1e5,1e6,1e7,1e8].map(v=>`<button data-v="${v}">${big(v)}</button>`).join('')}</div></div>
+ <div class="pcact"><button class="btn green" data-op="give">Начислить</button><button class="btn red" data-op="take">Забрать</button><button class="btn ghost" data-op="zero">Обнулить баланс</button><button class="btn ghost" data-op="inv">Забрать все скины</button><button class="btn ghost" data-op="code">Создать код</button><button class="btn ghost" data-op="copy">Копировать ID</button></div>
+ <div class="mut" style="font-size:12px;margin-top:10px">Списание и начисление срабатывают сразу, если игрок онлайн, иначе при его следующем входе.</div><div id="pcout"></div>`);
+ $$('#mbody .qb [data-v]').forEach(b=>b.onclick=()=>$('#pcam').value=b.dataset.v);
+ $$('.pcact [data-op]').forEach(b=>b.onclick=async()=>{const op=b.dataset.op,a=Math.floor(+$('#pcam').value);
+  if(op==='copy')return copyText(id,'ID скопирован');
+  if(op==='code'){if(!(a>0))return toast('Укажи сумму','bad');const code=await makeCode(a,id);const h=JSON.parse(localStorage.getItem('cb_codes')||'[]');h.unshift({a,t:id,c:code,d:Date.now()});localStorage.setItem('cb_codes',JSON.stringify(h.slice(0,100)));$('#pcout').innerHTML=`<textarea readonly rows="3" style="width:100%;margin-top:10px;font-size:11px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:8px">${code}</textarea>`;return copyText(code,'Код скопирован')}
+  if((op==='give'||op==='take')&&!(a>0))return toast('Укажи сумму','bad');
+  if(op==='inv'){if(await sendCmd(id,'take',0,true))toast('Скины будут забраны','good');return}
+  if(await sendCmd(id,op,a,false)){toast(op==='give'?'Начисление отправлено':op==='take'?'Списание отправлено':'Обнуление отправлено','good');
+   if(op==='give')p.b+=a;else if(op==='take')p.b=Math.max(0,p.b-a);else p.b=0;closeModal();plDraw&&plDraw()}})}
+function pageSubAdmin(){const L=subLimitInfo();
+ main.innerHTML=`<div class="adm-head"><div><div class="mut" style="font-size:12px;letter-spacing:1px">ПОМОЩНИК</div><h1 style="font-size:28px;font-weight:900">Админка</h1></div><span class="adm-badge sub">Урезанный доступ</span></div>
+ <div class="panel" style="max-width:520px;margin:12px auto 0"><div class="stats" style="grid-template-columns:1fr 1fr;margin-top:0"><div class="stat"><span>Лимит в день</span><b>${big(L.lim)} ₽</b></div><div class="stat"><span>Осталось сегодня</span><b style="color:${L.left?'var(--good)':'var(--bad)'}">${big(L.left)} ₽</b></div></div>
+  <div class="limbar"><i style="width:${Math.min(100,L.used/L.lim*100)}%"></i></div>
+  <div class="field" style="margin-top:14px"><label>Начислить себе</label><input id="sam" type="number" value="${Math.min(L.left,1e7)}"><div class="qb">${[1e6,1e7,5e7,1e8].map(v=>`<button data-v="${v}">${big(v)}</button>`).join('')}<button data-v="${L.left}">Всё</button></div></div>
+  <button class="btn big green" id="sgo" style="width:100%" ${L.left?'':'disabled'}>Начислить себе</button>
+  <div class="mut" style="font-size:12px;margin-top:10px">Лимит обновляется каждый день. Выдавать деньги другим игрокам помощник не может.</div>
+  <button class="btn ghost sm" id="aexit" style="margin-top:16px;color:var(--bad)">Выйти из админки</button></div>`;
+ $$('.qb [data-v]').forEach(b=>b.onclick=()=>$('#sam').value=b.dataset.v);
+ $('#sgo').onclick=()=>{const v=Math.floor(+$('#sam').value),l=subLimitInfo();if(!(v>0))return toast('Укажи сумму','bad');if(v>l.left)return toast('Превышен дневной лимит. Осталось '+fmt(l.left),'bad');
+  subUse(v);S.bal+=v;save();bump();winS();toast('+'+fmt(v),'good');pageSubAdmin()};
+ $('#aexit').onclick=()=>{localStorage.removeItem('cb_admin');ADMK=null;ADMROLE='';updAdminNav();go('cases')}}
 
 /* ================= СТАРТ ================= */
 (async()=>{
