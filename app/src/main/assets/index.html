@@ -286,6 +286,11 @@ html,body{overflow-x:hidden}
 .cpctl{display:flex;flex-direction:column;align-items:center;gap:12px;margin:8px 0 6px}
 .cpctl .row{justify-content:center}
 @media(max-width:600px){.cpctl #open{flex:1 1 100%}.cpctl .row{width:100%}.cpctl #demo{flex:1 1 100%}}
+.promo{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-top:14px}
+.ucset{display:flex;flex-direction:column;gap:8px;align-items:center;width:100%;max-width:520px}
+.ucset input[type=range]{margin:0}
+.ucset .qb{width:100%}
+.ucset .qb button.on{background:var(--acc);color:#111;border-color:var(--acc)}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -331,7 +336,7 @@ html,body{overflow-x:hidden}
 <div id="loader"><div class="logo" style="font-size:34px">CASE<b>//</b>BATTLE</div><div class="spin"></div><div class="mut" id="ltxt">Загружаю реальные кейсы и скины CS2…</div></div>
 <header>
  <div class="hrow">
-  <div class="logo" onclick="go('cases')">CASE<b>//</b>BATTLE</div>
+  <div class="logo" onclick="logoTap()">CASE<b>//</b>BATTLE</div>
   <nav id="nav">
    <button data-p="cases"><svg class="ic" viewBox="0 0 24 24"><path d="M3 7.5l9-4.5 9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/></svg>Кейсы</button>
    <button data-p="battles"><svg class="ic" viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5L21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Батлы</button>
@@ -559,7 +564,7 @@ function levelCheck(l0){const l=lvl();if(l>l0){const b=l*150;S.bal+=b;save();toa
 
 /* ================= НАВИГАЦИЯ ================= */
 function go(p,arg){if(busy){toast('Дождись окончания игры','bad');return}PAGE=p;$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p||(p==='case'&&b.dataset.p==='cases')));window.scrollTo(0,0);
- ({cases:pageCases,case:pageCase,battles:pageBattles,upgrade:pageUpgrade,contract:pageContract,crash:pageCrash,roulette:pageRoulette,mines:pageMines,profile:pageProfile})[p](arg)}
+ ({cases:pageCases,case:pageCase,battles:pageBattles,upgrade:pageUpgrade,contract:pageContract,crash:pageCrash,roulette:pageRoulette,mines:pageMines,admin:pageAdmin,profile:pageProfile})[p](arg)}
 $$('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.p));
 $('#sndBtn').onclick=()=>{S.sound=!S.sound;save()};
 $('#bonusBtn').onclick=bonusModal;
@@ -664,7 +669,7 @@ async function runBattle(){
  const bs=$('#bshow');if(bs)bs.onclick=()=>showDrops(all,'Ваш выигрыш в батле')}
 
 /* ================= АПГРЕЙД ================= */
-const UP={sel:[],target:null,rot:0};
+const UP={sel:[],target:null,rot:0,pc:null};
 function pageUpgrade(){
  UP.sel=UP.sel.filter(u=>S.inv.some(i=>i.u===u));
  const ticks=Array.from({length:72},(_,i)=>{const a=i*5*Math.PI/180,r1=i%6?99:95,r2=104;return`<line x1="${110+Math.sin(a)*r1}" y1="${110-Math.cos(a)*r1}" x2="${110+Math.sin(a)*r2}" y2="${110-Math.cos(a)*r2}"/>`}).join('');
@@ -678,16 +683,17 @@ function pageUpgrade(){
    <div class="ptr" id="uptr"></div><div class="ctr"><img id="uimg" src="" alt=""><span id="uq0" class="mut">Выбери цель</span></div></div>
    <div class="uinfo"><div><span>Шанс</span><b id="uch">0.00%</b></div><div><span>Множитель</span><b id="umx">—</b></div></div></div>
   <div class="uslotc" id="uto"></div>
-  <div class="ubar"><div class="mults">${[1.5,2,3,5,10,20].map(m=>`<button class="btn sm ghost" data-m="${m}">x${m}</button>`).join('')}</div><button class="btn big" id="ugo">Апгрейд</button></div></div>
+  <div class="ubar"><div class="ucset"><div class="mut" style="font-size:12px">Свой шанс: <b id="ucv" style="color:var(--good);font-size:15px">—</b></div><input type="range" id="ucr" min="1" max="80" step="1" value="50"><div class="qb">${[5,10,25,50,75].map(v=>`<button data-pc="${v}">${v}%</button>`).join('')}</div></div><button class="btn big" id="ugo">Апгрейд</button></div></div>
  <div class="ulists"><div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Ваши скины <span class="mut">(до 6)</span></b><span class="mut" id="usum"></span></div><div class="igrid" id="uinv"></div></div>
  <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Цель</b><input id="uq" placeholder="Поиск скина…" style="flex:1;max-width:240px"></div><div class="igrid" id="utg"></div></div></div>`;
  const sum=()=>S.inv.filter(i=>UP.sel.includes(i.u)).reduce((a,b)=>a+b.p,0);
- const chance=()=>UP.target&&UP.sel.length?Math.min(.8,Math.max(.01,sum()/UP.target.p*.96)):0;
+ const chance=()=>UP.target&&UP.sel.length?(UP.pc?UP.pc/100:Math.min(.8,Math.max(.01,sum()/UP.target.p*.96))):0;
+ const byPc=pc=>{const s=sum();if(!s){toast('Сначала выбери скины','bad');return}const goal=s*.96/(pc/100);let best=null;for(const t of DB.targets){if(t.p<=s)continue;if(!best||Math.abs(t.p-goal)<Math.abs(best.p-goal))best=t}if(!best){toast('Нет скина под такой шанс','bad');return}UP.target=best;UP.pc=pc;drawAll()};
  const drawInv=()=>{$('#uinv').innerHTML=S.inv.length?S.inv.map(it=>itemCard(it,'',(UP.sel.includes(it.u)?'sel ':'')+'click')).join(''):'<div class="empty" style="grid-column:1/-1">Пусто. Открой кейсы!</div>';
-  $$('#uinv .icard').forEach(e=>e.onclick=()=>{if(busy)return;const u=+e.dataset.u;if(UP.sel.includes(u))UP.sel=UP.sel.filter(x=>x!==u);else{if(UP.sel.length>=6){toast('Максимум 6 скинов','bad');return}UP.sel.push(u)}if(UP.target&&UP.target.p<=sum())UP.target=null;drawAll()})};
+  $$('#uinv .icard').forEach(e=>e.onclick=()=>{if(busy)return;const u=+e.dataset.u;if(UP.sel.includes(u))UP.sel=UP.sel.filter(x=>x!==u);else{if(UP.sel.length>=6){toast('Максимум 6 скинов','bad');return}UP.sel.push(u)}if(UP.pc&&sum()){byPc(UP.pc);return}if(UP.target&&UP.target.p<=sum())UP.target=null;drawAll()})};
  const drawTg=()=>{const q=$('#uq').value.toLowerCase();const s=sum();const list=DB.targets.filter(t=>t.p>s&&t.n.toLowerCase().includes(q)).slice(0,150);
   $('#utg').innerHTML=list.map(t=>itemCard({n:t.n,i:t.i,c:t.c,p:t.p,w:'FT'},'',(UP.target&&UP.target.n===t.n?'sel ':'')+'click').replace('data-u=""',`data-n="${esc(t.n)}"`)).join('')||'<div class="empty" style="grid-column:1/-1">Нет скинов</div>';
-  $$('#utg .icard').forEach(e=>e.onclick=()=>{if(busy)return;UP.target=DB.targets.find(t=>t.n===e.dataset.n);drawAll()})};
+  $$('#utg .icard').forEach(e=>e.onclick=()=>{if(busy)return;UP.target=DB.targets.find(t=>t.n===e.dataset.n);UP.pc=null;drawAll()})};
  const drawMid=()=>{const s=sum(),ch=chance();$('#usum').textContent=UP.sel.length?fmt(s):'';
   const sel=S.inv.filter(i=>UP.sel.includes(i.u));
   $('#ufrom').innerHTML=`<div class="ulab">Ваши скины</div>`+(sel.length?(sel.length===1?itemCard(sel[0]):`<div class="umulti">${sel.slice(0,6).map(i=>`<img src="${esc(i.i||GUN)}" onerror="imgErr(this)" style="--rc:${i.c}">`).join('')}</div><div class="usum">${fmt(s)}</div>`):'<div class="uempty">+<span>Выбери скины ниже</span></div>');
@@ -695,10 +701,11 @@ function pageUpgrade(){
   const img=$('#uimg');if(UP.target){img.src=UP.target.i||GUN;img.style.display='';$('#uq0').style.display='none'}else{img.style.display='none';$('#uq0').style.display=''}
   $('#uch').textContent=(ch*100).toFixed(2)+'%';$('#umx').textContent=ch?'x'+(UP.target.p/s).toFixed(2):'—';
   const arc=$('#uarc');arc.setAttribute('stroke-dasharray',`${ch*2*Math.PI*84} 999`);arc.setAttribute('transform',`rotate(${90-ch*180} 110 110)`);
-  $('#ugo').disabled=!ch};
+  $('#ugo').disabled=!ch;$('#ucv').textContent=ch?(ch*100).toFixed(UP.pc?0:2)+'%':'—';if(!$('#ucr').matches(':active'))$('#ucr').value=Math.round(ch*100)||50;$$('.ucset [data-pc]').forEach(b=>b.classList.toggle('on',+b.dataset.pc===UP.pc))};
  const drawAll=()=>{drawInv();drawTg();drawMid()};
  $('#uq').oninput=drawTg;
- $$('.mults button').forEach(b=>b.onclick=()=>{if(busy)return;const s=sum();if(!s){toast('Сначала выбери скины','bad');return}const goal=s*+b.dataset.m;let best=null;for(const t of DB.targets){if(t.p<=s)continue;if(!best||Math.abs(t.p-goal)<Math.abs(best.p-goal))best=t}if(best){UP.target=best;drawAll()}});
+ $$('.ucset [data-pc]').forEach(b=>b.onclick=()=>{if(!busy)byPc(+b.dataset.pc)});
+ $('#ucr').oninput=e=>{$('#ucv').textContent=e.target.value+'%'};$('#ucr').onchange=e=>{if(!busy)byPc(+e.target.value)};
  $('#ugo').onclick=async()=>{const ch=chance();if(!ch||busy)return;busy=true;$('#ugo').disabled=true;S.st.up++;
   const s=sum();const l0=spend(0);S.xp+=s;const wh=$('#uwheel');wh.classList.remove('uwin','ulose');
   const ang=Math.random()*360;const ptr=$('#uptr');const base=UP.rot%360;ptr.style.transition='none';ptr.style.transform=`rotate(${base}deg)`;void ptr.offsetWidth;
@@ -708,7 +715,7 @@ function pageUpgrade(){
   S.inv=S.inv.filter(i=>!UP.sel.includes(i.u));UP.sel=[];
   if(win){const it=makeItem(DB.targets.find(t=>t.n===UP.target.n),'FT');S.st.uw++;addInv([it]);pushTicker(it,S.nick);bigS();showDrops([it],'Апгрейд успешен!')}
   else{save();loseS();toast('Не повезло…','bad')}
-  UP.target=null;busy=false;levelCheck(l0);drawAll()};
+  UP.target=null;UP.pc=null;busy=false;levelCheck(l0);drawAll()};
  drawAll()}
 
 /* ================= КОНТРАКТ ================= */
@@ -899,6 +906,8 @@ function pageProfile(){
   <div class="stat"><span>Стоимость инвентаря</span><b>${fmt(invSum())}</b></div>
  </div></div>
  ${st.best?`<h2>Лучший дроп</h2><div style="max-width:220px">${itemCard(st.best)}</div>`:''}
+ <div class="panel promo"><div><div class="mut" style="font-size:12px">Твой ID игрока</div><div class="row"><b id="mypid" style="font-size:16px;letter-spacing:.5px">${pid()}</b><button class="btn sm ghost" id="cppid">Копировать</button></div></div>
+ <div style="flex:1;min-width:240px"><div class="mut" style="font-size:12px">Промокод</div><div class="row"><input id="promo" placeholder="CB-…" style="flex:1"><button class="btn sm" id="promob">Активировать</button></div></div></div>
  <h2>Инвентарь (${S.inv.length})</h2>
  <div class="toolbar"><select id="isort"><option value="new">Сначала новые</option><option value="exp">Дороже</option><option value="cheap">Дешевле</option></select><button class="btn ghost" id="sellch">Продать всё дешевле 100 ₽</button><button class="btn red" id="sellall" ${S.inv.length?'':'disabled'}>Продать всё (${fmt(invSum())})</button></div>
  <div class="igrid" id="pinv"></div>
@@ -908,6 +917,7 @@ function pageProfile(){
  {const a=$('#sin');if(a)a.onclick=steamLogin;const b=$('#sout');if(b)b.onclick=steamLogout}
  $('#pcol').onclick=()=>{S.avc=(S.avc+1)%AVC.length;save();pageProfile()};
   $('#pnick').onchange=e=>{S.nick=e.target.value.trim().slice(0,16)||'Игрок';save();if(!S.avimg)pageProfile()};
+ $('#cppid').onclick=async()=>{try{await navigator.clipboard.writeText(pid());toast('ID скопирован','good')}catch(e){toast('ID: '+pid())}};$('#promob').onclick=async()=>{if(await redeem($('#promo').value))pageProfile()};
  $('#isort').value=invSort;$('#isort').onchange=e=>{invSort=e.target.value;drawInv()};
  const drawInv=()=>{let a=[...S.inv];if(invSort==='exp')a.sort((x,y)=>y.p-x.p);if(invSort==='cheap')a.sort((x,y)=>x.p-y.p);
   $('#pinv').innerHTML=a.map(it=>itemCard(it,`<button class="btn sm" data-sell="${it.u}">Продать</button>`)).join('')||'<div class="empty" style="grid-column:1/-1">Инвентарь пуст — <a href="#" onclick="go(\'cases\');return false" style="color:var(--acc)">открой кейсы</a></div>';
@@ -950,6 +960,57 @@ function regModal(){let img=S.avimg||'';
  $('#rav').onclick=()=>pickAvatar(d=>{img=d;S.avOwn=true;$('#rav').innerHTML=`<img src="${d}">`});
  $('#rgo').onclick=()=>{const n=$('#rn').value.trim();if(n.length<2){toast('Ник минимум 2 символа','bad');return}S.nick=n.slice(0,16);S.avimg=img;if(!S.reg&&!S.st.wag)S.bal=startBal();S.reg=true;save();closeModal();$('#mbody').style.maxWidth='';toast(`Добро пожаловать, ${S.nick}!`,'good');if(PAGE==='profile')pageProfile()}}
 
+/* ================= АДМИНКА / ПРОМОКОДЫ ================= */
+const ADMIN_PUB={"kty":"EC","crv":"P-256","x":"FmGRSxcNUIqI-jGbmrLhFBIxqpEzWkhJGjT67GdeCtY","y":"lsudiJ7jWvWSlkisrwkeakQOnVmy-po4SgZ3CNJgiHY"};
+const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const ub64u=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'==='.slice((s.length+3)%4)),c=>c.charCodeAt(0));
+const enc=s=>new TextEncoder().encode(s);
+const ECP={name:'ECDSA',hash:'SHA-256'};
+let PUBK=null,ADMK=null;
+async function pubKey(){return PUBK||(PUBK=await crypto.subtle.importKey('jwk',{...ADMIN_PUB,ext:true},{name:'ECDSA',namedCurve:'P-256'},false,['verify']))}
+async function admKey(txt){const raw=Uint8Array.from(atob(txt.replace(/^CBADMIN-/,'').trim()),c=>c.charCodeAt(0));return crypto.subtle.importKey('pkcs8',raw,{name:'ECDSA',namedCurve:'P-256'},false,['sign'])}
+function pid(){if(S.steam)return S.steam;if(!S.pid){S.pid='P'+Math.random().toString(36).slice(2,10).toUpperCase();save()}return S.pid}
+const isAdmin=()=>!!ADMK;
+async function loadAdmin(){let t='';try{t=localStorage.getItem('cb_admin')||''}catch(e){}if(!t)return;try{ADMK=await admKey(t)}catch(e){ADMK=null}updAdminNav()}
+function updAdminNav(){let b=$('#nav [data-p="admin"]');if(isAdmin()&&!b){$('#nav').insertAdjacentHTML('beforeend','<button data-p="admin"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Админ</button>');$('#nav [data-p="admin"]').onclick=()=>go('admin')}else if(!isAdmin()&&b)b.remove()}
+async function makeCode(amount,to){const p={a:Math.floor(amount),t:to||'*',n:Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
+ const sig=await crypto.subtle.sign(ECP,ADMK,enc(data));return 'CB-'+data+'.'+b64u(sig)}
+async function redeem(code){code=code.trim();const m=code.match(/^CB-([\w-]+)\.([\w-]+)$/);if(!m)return toast('Неверный код','bad');
+ let ok=false,p;try{ok=await crypto.subtle.verify(ECP,await pubKey(),ub64u(m[2]),enc(m[1]));p=JSON.parse(new TextDecoder().decode(ub64u(m[1])))}catch(e){}
+ if(!ok||!p||!(p.a>0))return toast('Код недействителен','bad');
+ if(p.t!=='*'&&p.t!==pid())return toast('Этот код выдан другому игроку','bad');
+ S.used=S.used||[];if(S.used.includes(p.n))return toast('Код уже активирован','bad');
+ S.used.push(p.n);S.bal+=p.a;save();bump();bigS();toast('Начислено '+fmt(p.a),'good');return true}
+function adminUnlock(){openModal(`<h2 style="margin:0 0 8px">Вход в админку</h2><p class="mut">Вставь ключ администратора (начинается с CBADMIN-).</p><textarea id="akey" rows="4" style="width:100%;font:inherit;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:10px"></textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" id="ago">Войти</button></div>`);
+ $('#ago').onclick=async()=>{const t=$('#akey').value.trim();try{const k=await admKey(t);const test=enc('check');const sig=await crypto.subtle.sign(ECP,k,test);if(!await crypto.subtle.verify(ECP,await pubKey(),sig,test))throw 0;
+  ADMK=k;localStorage.setItem('cb_admin',t);updAdminNav();closeModal();toast('Админка открыта','good');go('admin')}catch(e){toast('Неверный ключ','bad')}}}
+let logoTaps=[];
+function logoTap(){const n=Date.now();logoTaps=logoTaps.filter(t=>n-t<2500);logoTaps.push(n);if(logoTaps.length>=7&&!isAdmin()){logoTaps=[];adminUnlock();return}go('cases')}
+function pageAdmin(){if(!isAdmin())return go('cases');
+ const hist=JSON.parse(localStorage.getItem('cb_codes')||'[]');
+ main.innerHTML=`<div class="hero"><h1>Админка</h1><p>Выдача денег игрокам через подписанные коды. Подделать код без твоего ключа нельзя.</p></div>
+ <div class="two"><div class="panel"><h3 style="margin:0 0 12px">Выдать деньги игроку</h3>
+  <div class="field"><label>ID игрока (в его профиле)</label><input id="ato" placeholder="Например 7656119… или PAB12CD3"></div>
+  <label class="chk" style="margin-bottom:10px"><input type="checkbox" id="aall"> Код для любого игрока (каждый может активировать 1 раз)</label>
+  <div class="field"><label>Сумма</label><input id="aam" type="number" min="1" value="1000"><div class="qb"><button data-v="500">500</button><button data-v="1000">1000</button><button data-v="5000">5000</button><button data-v="10000">10к</button><button data-v="100000">100к</button></div></div>
+  <button class="btn big" id="agen" style="width:100%">Создать код</button>
+  <div id="aout" style="margin-top:12px"></div></div>
+ <div class="panel"><h3 style="margin:0 0 12px">Себе</h3><div class="row"><input id="aself" type="number" value="10000" style="flex:1"><button class="btn green" id="aselfb">Начислить</button></div>
+  <div class="row" style="margin-top:10px"><input id="aset" type="number" placeholder="Точный баланс" style="flex:1"><button class="btn ghost" id="asetb">Установить</button></div>
+  <h3 style="margin:18px 0 10px">Созданные коды</h3><div class="hist" id="ahist">${hist.slice(0,30).map(h=>`<div class="hl" style="--rc:var(--acc)"><div class="t">${fmt(h.a)} → ${esc(h.t==='*'?'любой':h.t)}</div><button class="btn sm ghost" data-c="${esc(h.c)}">Копировать</button></div>`).join('')||'<div class="mut">Пока нет</div>'}</div>
+  <button class="btn ghost sm" id="aexit" style="margin-top:16px;color:var(--bad)">Выйти из админки на этом устройстве</button></div></div>`;
+ $$('.qb [data-v]').forEach(b=>b.onclick=()=>$('#aam').value=b.dataset.v);
+ $('#aall').onchange=e=>$('#ato').disabled=e.target.checked;
+ const copy=async t=>{try{await navigator.clipboard.writeText(t);toast('Скопировано','good')}catch(e){toast('Выдели код и скопируй вручную')}};
+ $$('#ahist [data-c]').forEach(b=>b.onclick=()=>copy(b.dataset.c));
+ $('#agen').onclick=async()=>{const a=Math.floor(+$('#aam').value),all=$('#aall').checked,to=$('#ato').value.trim();if(!(a>0))return toast('Укажи сумму','bad');if(!all&&!to)return toast('Укажи ID игрока','bad');
+  const code=await makeCode(a,all?'*':to);hist.unshift({a,t:all?'*':to,c:code,d:Date.now()});localStorage.setItem('cb_codes',JSON.stringify(hist.slice(0,100)));
+  $('#aout').innerHTML=`<div class="mut" style="font-size:12px;margin-bottom:6px">Отправь этот код игроку — он вводит его в профиле:</div><textarea readonly rows="4" style="width:100%;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:10px">${code}</textarea><button class="btn" id="acp" style="width:100%;margin-top:6px">Копировать код</button>`;
+  $('#acp').onclick=()=>copy(code);$('#aout textarea').onclick=e=>e.target.select()};
+ $('#aselfb').onclick=()=>{const v=Math.floor(+$('#aself').value);if(v){S.bal+=v;save();bump();toast('+'+fmt(v),'good')}};
+ $('#asetb').onclick=()=>{const v=Math.floor(+$('#aset').value);if(v>=0){S.bal=v;save();bump();toast('Баланс: '+fmt(v),'good')}};
+ $('#aexit').onclick=()=>{localStorage.removeItem('cb_admin');ADMK=null;updAdminNav();go('cases')}}
+
 /* ================= СТАРТ ================= */
 (async()=>{
  updHead();
@@ -958,7 +1019,7 @@ function regModal(){let img=S.avimg||'';
  else{DB=await loadRemote();if(DB){try{localStorage.setItem(DBKEY,JSON.stringify(DB))}catch(e){}}
   else{$('#ltxt').innerHTML='Не удалось загрузить базу CS2 (нужен интернет / GitHub).<br><br><button class="btn" onclick="location.reload()">Повторить</button> <button class="btn ghost" id="demoDB">Демо-режим</button>';
    await new Promise(r=>$('#demoDB').onclick=r);DB=fallbackDB()}}
- prepDB();$('#loader').remove();go('cases');if(!S.reg)regModal();
+ prepDB();loadAdmin();$('#loader').remove();go('cases');if(!S.reg)regModal();
  for(let i=0;i<14;i++){const c=rnd(DB.all);pushTicker(rollCase(c,true),rnd(BOTS))}
  setInterval(()=>{if(document.hidden)return;const c=rnd(DB.all);pushTicker(rollCase(c,true),rnd(BOTS))},2200);
 })();
