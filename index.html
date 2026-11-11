@@ -532,7 +532,10 @@ function prepDB(){applyPrices();
   let tot=0;for(const t in g)tot+=TW[t];c.g=g;c.tp={};let ev=0;
   for(const t in g){c.tp[t]=TW[t]/tot;const avg=g[t].reduce((a,i)=>a+DB.skins[i].p,0)/g[t].length;ev+=c.tp[t]*avg}
   c.price=Math.max(25,Math.ceil(ev*(PRICES?1:1.083)*1.1*1.04/5)*5)});
- DB.targets=DB.skins.map(s=>s.pw?{...s,p:s.pw.FT||s.pw.MW||s.pw.WW||s.pw.FN||s.pw.BS}:s).sort((a,b)=>a.p-b.p);
+ DB.targets=[];for(const s of DB.skins){const b={n:s.n,i:s.i,c:s.c,t:s.t};
+  if(s.pw){for(const w of WEARS){const v=s.pw[w[0]];if(!v)continue;DB.targets.push({...b,w:w[0],st:false,p:v});const sv=canST(s.n)&&PRICES&&PRICES[mhn(s.n,w[0],true)];if(sv)DB.targets.push({...b,w:w[0],st:true,p:Math.min(MAXP,sv)})}}
+  else DB.targets.push({...b,w:'FT',st:false,p:s.p})}
+ DB.targets.sort((a,b)=>a.p-b.p);DB.targets.forEach((t,k)=>t.k=k);
  DB.newest=new Set(DB.cases.slice(0,3).map(c=>c.id));
  DB.custom=buildCustom();DB.custom.forEach(c=>DB.byId[c.id]=c);DB.all=[...DB.custom,...DB.cases];
 }
@@ -562,7 +565,7 @@ const bigS=()=>[392,523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>beep(f,
 const loseS=()=>[300,200].forEach((f,i)=>setTimeout(()=>beep(f,.25,'sawtooth',.04),i*140));
 
 /* ================= UI ХЕЛПЕРЫ ================= */
-function toast(t,cls=''){const e=document.createElement('div');e.className='tst '+cls;e.textContent=t;$('#toast').append(e);setTimeout(()=>e.remove(),2600)}
+function toast(t,cls=''){const box=$('#toast');if([...box.children].some(x=>x.textContent===t))return;while(box.children.length>=3)box.firstChild.remove();const e=document.createElement('div');e.className='tst '+cls;e.textContent=t;$('#toast').append(e);setTimeout(()=>e.remove(),2600)}
 let MLOCK=false;function openModal(h,lock){MLOCK=!!lock;$('#mbody').innerHTML=h;$('#modal').classList.add('on')}
 function closeModal(){$('#modal').classList.remove('on')}
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal'&&!MLOCK)closeModal()});
@@ -786,6 +789,7 @@ function casePicker(){
   $$('#pg .case').forEach(e=>e.onclick=()=>{if(BT.cases.length>=10){toast('Максимум 10 раундов','bad');return}BT.cases.push(e.dataset.id);beep(900,.04,'triangle',.05);draw()})};
  $('#pq').oninput=draw;draw()}
 /* ================= АПГРЕЙД ================= */
+function targetItem(t){const W=WEARS.find(w=>w[0]===t.w)||WEARS[2];return{u:S.uid++,n:t.n,i:t.i,c:t.c,t:t.t,w:t.w,st:!!t.st,f:+(W[2]+Math.random()*(W[3]-W[2])).toFixed(4),p:t.p}}
 const UP={sel:[],target:null,rot:0,pc:null};
 function pageUpgrade(){
  UP.sel=UP.sel.filter(u=>S.inv.some(i=>i.u===u));
@@ -805,17 +809,17 @@ function pageUpgrade(){
  <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><b>Цель</b><input id="uq" placeholder="Поиск скина…" style="flex:1;min-width:120px"><select id="usrt"><option value="asc">Дешевле</option><option value="desc">Дороже</option></select></div><div class="igrid" id="utg"></div><button class="btn ghost" id="umore" style="width:100%;margin-top:10px;display:none">Показать ещё</button></div></div>`;
  const sum=()=>S.inv.filter(i=>UP.sel.includes(i.u)).reduce((a,b)=>a+b.p,0);
  const chance=()=>UP.target&&UP.sel.length?(UP.pc?UP.pc/100:Math.min(.8,Math.max(.00001,sum()/UP.target.p*.96))):0;
- const byPc=pc=>{const s=sum();if(!s){toast('Сначала выбери скины','bad');return}const goal=s*.96/(pc/100);let best=null;for(const t of DB.targets){if(t.p<=s)continue;if(!best||Math.abs(t.p-goal)<Math.abs(best.p-goal))best=t}if(!best){toast('Нет скина дороже твоих','bad');return}if(best.p<goal*.7){UP.target=best;UP.pc=null;drawAll();toast('Это самый дорогой скин — шанс '+$('#uch').textContent);return}UP.target=best;UP.pc=pc;drawAll()};
+ const byPc=pc=>{const s=sum();if(!s){toast('Сначала выбери скины','bad');return}const goal=s*.96/(pc/100);let best=null;for(const t of DB.targets){if(t.p<=s)continue;if(!best||Math.abs(t.p-goal)<Math.abs(best.p-goal))best=t}if(!best){UP.pc=null;UP.target=null;drawAll();toast('Дороже твоих скинов ничего нет','bad');return}if(best.p<goal*.7){UP.target=best;UP.pc=null;drawAll();toast('Это самый дорогой скин — шанс '+$('#uch').textContent);return}UP.target=best;UP.pc=pc;drawAll()};
  const drawInv=()=>{$('#uinv').innerHTML=S.inv.length?S.inv.map(it=>itemCard(it,'',(UP.sel.includes(it.u)?'sel ':'')+'click')).join(''):'<div class="empty" style="grid-column:1/-1">Пусто. Открой кейсы!</div>';
   $$('#uinv .icard').forEach(e=>e.onclick=()=>{if(busy)return;const u=+e.dataset.u;if(UP.sel.includes(u))UP.sel=UP.sel.filter(x=>x!==u);else{if(UP.sel.length>=6){toast('Максимум 6 скинов','bad');return}UP.sel.push(u)}if(UP.pc&&sum()){byPc(UP.pc);return}if(UP.target&&UP.target.p<=sum())UP.target=null;drawAll()})};
  UP.lim=UP.lim||120;
  const drawTg=()=>{const q=$('#uq').value.toLowerCase();const s=sum();let all=DB.targets.filter(t=>t.p>s&&t.n.toLowerCase().includes(q));if($('#usrt').value==='desc')all=all.slice().reverse();const list=all.slice(0,UP.lim);$('#umore').style.display=all.length>UP.lim?'':'none';$('#umore').textContent=`Показать ещё (${all.length-UP.lim})`;
-  $('#utg').innerHTML=list.map(t=>itemCard({n:t.n,i:t.i,c:t.c,p:t.p,w:'FT'},'',(UP.target&&UP.target.n===t.n?'sel ':'')+'click').replace('data-u=""',`data-n="${esc(t.n)}"`)).join('')||'<div class="empty" style="grid-column:1/-1">Нет скинов</div>';
-  $$('#utg .icard').forEach(e=>e.onclick=()=>{if(busy)return;UP.target=DB.targets.find(t=>t.n===e.dataset.n);UP.pc=null;drawAll()})};
+  $('#utg').innerHTML=list.map(t=>itemCard(t,'',(UP.target&&UP.target.k===t.k?'sel ':'')+'click').replace('data-u=""',`data-k="${t.k}"`)).join('')||(s?'<div class="empty" style="grid-column:1/-1">Дороже твоих скинов в игре ничего нет — апгрейдить некуда</div>':'<div class="empty" style="grid-column:1/-1">Нет скинов</div>');
+  $$('#utg .icard').forEach(e=>e.onclick=()=>{if(busy)return;UP.target=DB.targets[+e.dataset.k];UP.pc=null;drawAll()})};
  const drawMid=()=>{const s=sum(),ch=chance();$('#usum').textContent=UP.sel.length?fmt(s):'';
   const sel=S.inv.filter(i=>UP.sel.includes(i.u));
   $('#ufrom').innerHTML=`<div class="ulab">Ваши скины</div>`+(sel.length?(sel.length===1?itemCard(sel[0]):`<div class="umulti">${sel.slice(0,6).map(i=>`<img src="${esc(i.i||GUN)}" onerror="imgErr(this)" style="--rc:${i.c}">`).join('')}</div><div class="usum">${fmt(s)}</div>`):'<div class="uempty">+<span>Выбери скины ниже</span></div>');
-  $('#uto').innerHTML=`<div class="ulab">Вы получите</div>`+(UP.target?itemCard({n:UP.target.n,i:UP.target.i,c:UP.target.c,p:UP.target.p,w:'FT'}):'<div class="uempty">?<span>Выбери цель ниже</span></div>');
+  $('#uto').innerHTML=`<div class="ulab">Вы получите</div>`+(UP.target?itemCard(UP.target):'<div class="uempty">?<span>Выбери цель ниже</span></div>');
   const img=$('#uimg');if(UP.target){img.src=UP.target.i||GUN;img.style.display='';$('#uq0').style.display='none'}else{img.style.display='none';$('#uq0').style.display=''}
   $('#uch').textContent=(ch*100).toFixed(ch<.001?4:2)+'%';$('#umx').textContent=ch?'x'+(UP.target.p/s).toFixed(2):'—';
   const arc=$('#uarc');arc.setAttribute('stroke-dasharray',`${ch*2*Math.PI*84} 999`);arc.setAttribute('transform',`rotate(${90-ch*180} 110 110)`);
@@ -831,7 +835,7 @@ function pageUpgrade(){
   let last=0;const t0=performance.now();const tk=()=>{const m=new DOMMatrixReadOnly(getComputedStyle(ptr).transform);const q=Math.floor(Math.atan2(m.b,m.a)*8);if(q!==last){last=q;tick()}if(performance.now()-t0<4500)requestAnimationFrame(tk)};requestAnimationFrame(tk);
   await sleep(4700);const win=Math.abs(ang-180)<=ch*180;wh.classList.add(win?'uwin':'ulose');
   S.inv=S.inv.filter(i=>!UP.sel.includes(i.u));UP.sel=[];
-  if(win){const it=makeItem(DB.targets.find(t=>t.n===UP.target.n),'FT');S.st.uw++;addInv([it]);pushTicker(it,S.nick);bigS();showDrops([it],'Апгрейд успешен!')}
+  if(win){const it=targetItem(UP.target);S.st.uw++;addInv([it]);pushTicker(it,S.nick);bigS();showDrops([it],'Апгрейд успешен!')}
   else{save();loseS();toast('Не повезло…','bad')}
   UP.target=null;UP.pc=null;busy=false;levelCheck(l0);drawAll()};
  drawAll()}
@@ -855,7 +859,7 @@ function pageContract(){
   const z=(()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)})();
   const m=Math.min(5,Math.max(.25,Math.exp(-.15+.62*z)));const goal=s*m;
   const T=DB.targets;let lo=0,hi=T.length-1;while(lo<hi){const mid=(lo+hi)>>1;if(T[mid].p<goal)lo=mid+1;else hi=mid}
-  const pool=T.slice(Math.max(0,lo-3),lo+3);const sk=rnd(pool);const it=makeItem(sk,'FT');
+  const pool=T.slice(Math.max(0,lo-3),lo+3);const it=targetItem(rnd(pool));
   S.inv=S.inv.filter(i=>!CT.sel.includes(i.u));CT.sel=[];addInv([it]);pushTicker(it,S.nick);
   $('#cres').innerHTML=itemCard(it,`<div style="margin-top:6px;font-weight:700;color:${it.p>=s?'var(--good)':'var(--bad)'}">${it.p>=s?'+':''}${fmt(it.p-s)}</div>`);
   it.p>=s?bigS():loseS();busy=false;draw()};
