@@ -317,6 +317,32 @@ body{-webkit-text-size-adjust:100%;}
 .wslot{background:var(--bg3);border:1px dashed var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
 .wslot.on{border-style:solid;border-color:var(--good);animation:pop .3s}
 .wslot .av{width:52px;height:52px;font-size:24px;border-radius:16px}
+.insb{position:absolute;right:6px;bottom:44px;z-index:3;width:28px;height:28px;border-radius:9px;border:1px solid #ffffff22;background:#0b0d14cc;display:grid;place-items:center;padding:0;opacity:.85;transition:.15s}
+.insb svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round}
+.insb:hover{opacity:1;border-color:var(--acc);transform:scale(1.08)}
+#imodal{position:fixed;inset:0;z-index:70;background:#000c;display:none;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(6px)}
+#imodal.on{display:flex}
+.ibox{background:radial-gradient(500px 300px at 50% 35%,color-mix(in srgb,var(--rc) 22%,transparent),transparent),var(--bg2);border:1px solid var(--line);border-radius:22px;padding:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;animation:pop .25s}
+.ihead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ihead h2{font-size:22px;font-weight:900;margin:2px 0}
+.istage{position:relative;height:280px;display:grid;place-items:center;touch-action:none;cursor:grab;margin:6px 0;overflow:hidden;border-radius:16px}
+.istage:active{cursor:grabbing}
+.iglow{position:absolute;width:70%;height:40%;bottom:12%;background:radial-gradient(closest-side,var(--rc),transparent);opacity:.45;filter:blur(10px)}
+.iturn{position:relative;width:88%;transform-style:preserve-3d;will-change:transform}
+.iturn img{width:100%;display:block;filter:drop-shadow(0 18px 24px #000c);user-select:none;-webkit-user-drag:none;pointer-events:none}
+.ishine{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 35%,#ffffff40 50%,transparent 65%);background-size:250% 250%;mix-blend-mode:overlay;-webkit-mask:var(--m);mask:var(--m)}
+.ihint{position:absolute;bottom:6px;font-size:11px;color:var(--mut);transition:.4s}
+.istage.touched .ihint{opacity:0}
+.ictl{display:flex;gap:8px;align-items:center}
+.ictl input{flex:1}
+.ifloat{margin:14px 0 6px;font-size:13px}
+.fbar{position:relative;height:10px;border-radius:6px;margin-top:6px;background:linear-gradient(90deg,#3ddc84 0 7%,#9be15d 7% 15%,#e4ae39 15% 38%,#f07b3f 38% 45%,#eb4b4b 45% 100%)}
+.fbar i{position:absolute;top:-4px;width:3px;height:18px;background:#fff;border-radius:2px;box-shadow:0 0 8px #fff;transform:translateX(-1.5px)}
+.fsc{display:grid;grid-template-columns:7fr 8fr 23fr 7fr 55fr;font-size:9px;color:var(--mut);margin-top:3px}
+.iprices{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+.iprices th{text-align:left;color:var(--mut);font-weight:500;padding:6px 4px;border-bottom:1px solid var(--line)}
+.iprices td{padding:7px 4px;border-bottom:1px solid #ffffff0a}
+.iprices tr.cur td{background:#ffb02e14;font-weight:700}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -556,6 +582,35 @@ function earn(v){S.bal+=v;S.st.won+=v;save()}
 function updHead(){$('#balv').textContent=fmt(S.bal);const m=$('#meav');m.style.background=AVC[S.avc%AVC.length];m.innerHTML=myAv()+'<i>'+lvl()+'</i>';$('#sndBtn').innerHTML=ic(S.sound?'snd':'mute')}
 function bump(){const b=$('#balv');b.classList.remove('flash');void b.offsetWidth;b.classList.add('flash')}
 
+/* ================= ОСМОТР ОРУЖИЯ ================= */
+const WRU={FN:'Прямо с завода',MW:'Немного поношенное',FT:'После полевых испытаний',WW:'Поношенное',BS:'Закалённое в боях'};
+let SKBYN=null;const skinBy=n=>{if(!SKBYN||SKBYN.size!==DB.skins.length)SKBYN=new Map(DB.skins.map(s=>[s.n,s]));return SKBYN.get(n)};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-insp]');if(!b)return;e.stopPropagation();e.preventDefault();const c=b.closest('.icard');if(!c)return;
+ const d=c.dataset;inspect({n:d.n,w:d.w||'',st:d.st==='1',f:d.f?+d.f:null,p:d.p?+d.p:null,i:c.querySelector('img').getAttribute('src'),c:c.style.getPropertyValue('--rc')})},true);
+function inspect(it){const s=skinBy(it.n)||{};const[wn,sn]=splitName(it.n);const tier=TIERS[s.t||it.t]||TIERS.milspec;const col=it.c||s.c||tier[1];
+ let M=$('#imodal');if(!M){M=document.createElement('div');M.id='imodal';document.body.append(M);M.addEventListener('click',e=>{if(e.target===M)M.classList.remove('on')})}
+ const rows=WEARS.map(w=>{const k=w[0];let p=s.pw?s.pw[k]:(s.p?Math.round(s.p*w[5]):null);if(s.pw&&!p)return'';const sp=canST(it.n)?(PRICES&&PRICES[mhn(it.n,k,true)])||(!s.pw&&p?Math.round(p*1.7):null):null;
+  return`<tr class="${it.w===k?'cur':''}"><td>${WRU[k]}</td><td>${p?fmt(p):'—'}</td><td class="stt">${sp?fmt(sp):'—'}</td></tr>`}).join('');
+ const fl=it.f!=null?`<div class="ifloat"><div class="row" style="justify-content:space-between"><span>${WRU[it.w]||''}</span><b>Float ${it.f.toFixed(6)}</b></div><div class="fbar"><i style="left:${Math.min(100,it.f*100)}%"></i></div><div class="fsc"><span>FN</span><span>MW</span><span>FT</span><span>WW</span><span>BS</span></div></div>`:'';
+ M.innerHTML=`<div class="ibox" style="--rc:${col}"><div class="ihead"><div style="min-width:0"><div class="mut">${it.st?'<b class="stt">StatTrak™</b> ':''}${esc(wn)}</div><h2>${esc(sn)}</h2><span style="color:${col};font-weight:700;font-size:13px">${tier[0]}</span></div>
+ <div style="text-align:right">${it.p?`<div style="font-size:22px;font-weight:900;color:var(--acc)">${fmt(it.p)}</div>`:''}<button class="btn sm ghost" id="iclose" style="margin-top:6px">Закрыть</button></div></div>
+ <div class="istage" id="istage"><div class="iglow"></div><div class="iturn" id="iturn"><img src="${esc(it.i||s.i||GUN)}" onerror="imgErr(this)" draggable="false"><div class="ishine" id="ishine"></div></div><div class="ihint">Двигай пальцем, чтобы покрутить</div></div>
+ <div class="ictl"><button class="btn sm ghost" id="iauto">Вращать</button><input type="range" id="izoom" min="1" max="2.6" step="0.01" value="1"><button class="btn sm ghost" id="ireset">Сброс</button></div>
+ ${fl}<table class="iprices"><tr><th>Износ</th><th>Цена</th><th>StatTrak™</th></tr>${rows}</table></div>`;
+ M.classList.add('on');
+ {const src=it.i||s.i;if(src)$('#ishine').style.setProperty('--m',`url("${src}") center/100% 100% no-repeat`)}
+ const T=$('#iturn'),st=$('#istage'),sh=$('#ishine');let rx=0,ry=0,z=1,auto=false,drag=null,raf=0;
+ const ap=()=>{T.style.transform=`perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${z})`;sh.style.backgroundPosition=`${50+ry*1.6}% ${50-rx*1.5}%`};
+ st.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,rx,ry};auto=false;st.setPointerCapture(e.pointerId);st.classList.add('touched')};
+ st.onpointermove=e=>{if(!drag)return;ry=Math.max(-45,Math.min(45,drag.ry+(e.clientX-drag.x)*.35));rx=Math.max(-28,Math.min(28,drag.rx-(e.clientY-drag.y)*.25));ap()};
+ st.onpointerup=st.onpointercancel=()=>{drag=null};
+ st.ondblclick=()=>{z=z>1.2?1:2;$('#izoom').value=z;ap()};
+ $('#izoom').oninput=e=>{z=+e.target.value;ap()};
+ $('#ireset').onclick=()=>{rx=ry=0;z=1;auto=false;$('#izoom').value=1;ap()};
+ $('#iauto').onclick=()=>{auto=!auto;const t0=performance.now();cancelAnimationFrame(raf);const loop=t=>{if(!auto||!M.classList.contains('on'))return;ry=Math.sin((t-t0)/900)*38;rx=Math.sin((t-t0)/1500)*10;ap();raf=requestAnimationFrame(loop)};raf=requestAnimationFrame(loop)};
+ $('#iclose').onclick=()=>{auto=false;M.classList.remove('on')};
+ ap();beep(700,.05,'triangle',.04)}
+
 /* ================= ЗВУК ================= */
 let AC;
 function beep(f=800,d=.03,type='square',v=.04){if(!S.sound)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
@@ -570,7 +625,7 @@ let MLOCK=false;function openModal(h,lock){MLOCK=!!lock;$('#mbody').innerHTML=h;
 function closeModal(){$('#modal').classList.remove('on')}
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal'&&!MLOCK)closeModal()});
 function itemCard(it,extra='',cls=''){const[w,s]=splitName(it.n);
- return `<div class="icard ${cls}" style="--rc:${it.c}" data-u="${it.u||''}"><div class="itop"><span class="wear">${it.st?'<b class="stt">ST</b> ':''}${it.w||''}</span><span class="ip">${it.p!=null?fmt(it.p):''}</span></div><img src="${esc(it.i||GUN)}" loading="lazy" onerror="imgErr(this)"><div class="iw">${esc(w)}</div><div class="is">${esc(s)}</div>${extra}</div>`}
+ return `<div class="icard ${cls}" style="--rc:${it.c}" data-u="${it.u||''}" data-n="${esc(it.n)}" data-w="${it.w||''}" data-st="${it.st?1:''}" data-f="${it.f!=null?it.f:''}" data-p="${it.p!=null?it.p:''}"><button class="insb" data-insp title="Осмотреть"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button><div class="itop"><span class="wear">${it.st?'<b class="stt">ST</b> ':''}${it.w||''}</span><span class="ip">${it.p!=null?fmt(it.p):''}</span></div><img src="${esc(it.i||GUN)}" loading="lazy" onerror="imgErr(this)"><div class="iw">${esc(w)}</div><div class="is">${esc(s)}</div>${extra}</div>`}
 function makeItem(s,wk,vis){let W;const ok=w=>!s.pw||s.pw[w[0]];
  if(wk)W=WEARS.find(w=>w[0]===wk&&ok(w))||WEARS.find(ok);else{const av=WEARS.filter(ok);const tot=av.reduce((a,w)=>a+w[4],0);let r=Math.random()*tot,a=0;for(const w of av){a+=w[4];if(r<a){W=w;break}}W=W||av[0]||WEARS[2]}
  let st=!wk&&canST(s.n)&&Math.random()<.15;let p;
