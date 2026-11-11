@@ -305,6 +305,18 @@ main{padding-bottom:calc(60px + env(safe-area-inset-bottom))}
 #toast{bottom:calc(24px + env(safe-area-inset-bottom))}
 input,select,textarea{font-size:16px}
 body{-webkit-text-size-adjust:100%;}
+.lobby{display:flex;flex-direction:column;gap:8px}
+.lroom{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px 12px;flex-wrap:wrap;animation:drop .3s}
+.lcases{display:flex;gap:4px;align-items:center}
+.lcases img{width:46px;height:36px;object-fit:contain;background:var(--bg3);border-radius:8px;padding:2px}
+.lcases.big{justify-content:center;flex-wrap:wrap;margin:14px 0}.lcases.big img{width:70px;height:54px}
+.linfo{display:flex;flex-direction:column;flex:1;min-width:100px;font-size:13px}
+.lslots{display:flex;gap:4px}
+.lcost{font-weight:900;color:var(--acc)}
+.wslots{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:10px 0}
+.wslot{background:var(--bg3);border:1px dashed var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.wslot.on{border-style:solid;border-color:var(--good);animation:pop .3s}
+.wslot .av{width:52px;height:52px;font-size:24px;border-radius:16px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -595,7 +607,7 @@ function pushTicker(it,who){const T=$('#ticker');const e=document.createElement(
 function levelCheck(l0){const l=lvl();if(l>l0){const b=l*150;S.bal+=b;save();toast(`Новый уровень ${l}! +${fmt(b)}`,'good');bigS()}}
 
 /* ================= НАВИГАЦИЯ ================= */
-function go(p,arg){if(busy){toast('Дождись окончания игры','bad');return}PAGE=p;$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p||(p==='case'&&b.dataset.p==='cases')));window.scrollTo(0,0);
+function go(p,arg){if(busy){toast('Дождись окончания игры или выйди из батла','bad');return}PAGE=p;$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p||(p==='case'&&b.dataset.p==='cases')));window.scrollTo(0,0);
  ({cases:pageCases,case:pageCase,battles:pageBattles,upgrade:pageUpgrade,contract:pageContract,crash:pageCrash,roulette:pageRoulette,mines:pageMines,admin:pageAdmin,profile:pageProfile})[p](arg)}
 $$('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.p));
 $('#sndBtn').onclick=()=>{S.sound=!S.sound;save()};
@@ -650,56 +662,129 @@ function pageCase(id){
   addInv(wins);wins.forEach(w=>pushTicker(w,S.nick));showDrops(wins);levelCheck(l0)};
  $('#open').onclick=()=>run(false);$('#demo').onclick=()=>run(true);upd()}
 
-/* ================= БАТЛЫ ================= */
+/* ================= БАТЛЫ (онлайн) ================= */
 const BT={players:2,crazy:false,cases:[]};
+const MQT='cbattle/v1/';
+const MQ={c:null,ok:false,rooms:{},room:null,hb:null};
+function mqLoad(){return new Promise((res,rej)=>{if(window.mqtt)return res();const add=(src,next)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=next;document.head.append(s)};
+ add('https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js',()=>add('https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js',rej))})}
+async function mqConnect(){if(MQ.c)return;try{await mqLoad()}catch(e){toast('Не удалось загрузить онлайн-модуль','bad');return}
+ MQ.c=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{clientId:'cb_'+Math.random().toString(16).slice(2,12),reconnectPeriod:3000,connectTimeout:12000,clean:true});
+ MQ.c.on('connect',()=>{MQ.ok=true;MQ.c.subscribe([MQT+'rooms/+',MQT+'rooms/+/ctl']);lobbyDraw()});
+ MQ.c.on('close',()=>{MQ.ok=false;lobbyDraw()});
+ MQ.c.on('message',(t,m)=>{const parts=t.split('/'),id=parts[3],ctl=parts[4]==='ctl';let d=null;const s=m.toString();if(s)try{d=JSON.parse(s)}catch(e){return}
+  if(ctl)return onCtl(id,d);
+  if(!d){delete MQ.rooms[id]}else MQ.rooms[id]=d;
+  if(MQ.room&&MQ.room.id===id)onMyRoom(d);
+  lobbyDraw()})}
+const mePlayer=()=>({pid:pid(),name:S.nick,col:AVC[S.avc%AVC.length]});
+const pubRoom=r=>{r.ts=Date.now();MQ.c&&MQ.c.publish(MQT+'rooms/'+r.id,JSON.stringify(r),{retain:true,qos:1})};
+const delRoom=id=>MQ.c&&MQ.c.publish(MQT+'rooms/'+id,'',{retain:true,qos:1});
+const sendCtl=(id,d)=>MQ.c&&MQ.c.publish(MQT+'rooms/'+id+'/ctl',JSON.stringify(d),{qos:1});
+const roomAlive=r=>r&&r.state==='open'&&Date.now()-r.ts<100000;
+
 function pageBattles(){
- const cost=BT.cases.reduce((a,id)=>a+DB.byId[id].price,0);
- main.innerHTML=`<div class="hero"><div class="gl">${ic('battles')}</div><h1>Кейс-батлы</h1><p>Открывайте одинаковые кейсы против ботов. Кто выбил больше — забирает ВСЕ скины. В безумном режиме побеждает тот, у кого меньше.</p></div>
+ mqConnect();
+ const cost=BT.cases.reduce((a,id)=>a+(DB.byId[id]?DB.byId[id].price:0),0);
+ main.innerHTML=`<div class="hero"><div class="gl">${ic('battles')}</div><h1>Кейс-батлы онлайн</h1><p>Играй против живых игроков. Создай батл или зайди в чужой — кто выбил больше, забирает все скины. В безумном режиме побеждает тот, у кого меньше.</p></div>
+ <div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Открытые батлы</h2><span id="mqst" class="mut" style="font-size:13px"></span></div>
+ <div id="lobby" class="lobby"></div>
+ <h2>Создать батл</h2>
  <div class="panel"><div class="row" style="justify-content:space-between"><div class="row"><span class="mut">Игроков:</span><div class="seg" id="bp">${[2,3,4].map(n=>`<button data-n="${n}" class="${BT.players===n?'on':''}">${n===2?'1 vs 1':n===3?'1v1v1':'1v1v1v1'}</button>`).join('')}</div>
  <label class="chk"><input type="checkbox" id="bcz" ${BT.crazy?'checked':''}> Безумный режим</label><label class="chk"><input type="checkbox" id="bfast" ${S.fast?'checked':''}> Быстро</label></div>
  <div class="row"><button class="btn ghost" id="brand">Случайный</button><button class="btn ghost" id="bclr">Очистить</button></div></div>
  <h3 style="margin:16px 0 10px">Раунды (${BT.cases.length}/10)</h3><div class="bset">${BT.cases.map((id,k)=>{const c=DB.byId[id];return`<div class="bcase"><button class="x" data-k="${k}">×</button><img src="${esc(c.i||GUN)}" style="${cf(c)}" onerror="imgErr(this)"><div>${esc(c.n)}</div><b>${fmt(c.price)}</b></div>`}).join('')}${BT.cases.length<10?'<button class="addc" id="badd">+</button>':''}</div>
- <div class="row" style="margin-top:16px;justify-content:space-between"><div style="font-size:18px">Стоимость входа: <b style="color:var(--acc)">${fmt(cost)}</b></div><button class="btn big" id="bgo" ${BT.cases.length?'':'disabled'}>Начать батл</button></div></div>`;
+ <div class="row" style="margin-top:16px;justify-content:space-between"><div style="font-size:18px">Вход: <b style="color:var(--acc)">${fmt(cost)}</b></div><button class="btn big" id="bgo" ${BT.cases.length?'':'disabled'}>Создать батл</button></div></div>`;
  $$('#bp button').forEach(b=>b.onclick=()=>{BT.players=+b.dataset.n;pageBattles()});
  $('#bcz').onchange=e=>BT.crazy=e.target.checked;$('#bfast').onchange=e=>{S.fast=e.target.checked;save()};
  $$('.bcase .x').forEach(b=>b.onclick=()=>{BT.cases.splice(+b.dataset.k,1);pageBattles()});
  $('#bclr').onclick=()=>{BT.cases=[];pageBattles()};
- $('#brand').onclick=()=>{BT.cases=[];const n=3+Math.random()*3|0;for(let i=0;i<n;i++)BT.cases.push(rnd(DB.all.filter(c=>c.price<3000)).id);pageBattles()};
+ $('#brand').onclick=()=>{BT.cases=[];const n=3+Math.random()*3|0;const pool=DB.all.filter(c=>c.price<=Math.max(300,S.bal/6));for(let i=0;i<n;i++)BT.cases.push(rnd(pool.length?pool:DB.all).id);pageBattles()};
  const ba=$('#badd');if(ba)ba.onclick=casePicker;
- $('#bgo').onclick=()=>{if(S.bal<cost){toast('Недостаточно средств','bad');return}runBattle()}}
-function casePicker(){
- openModal(`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Добавить кейс</h2><button class="btn" onclick="closeModal();pageBattles()">Готово</button></div><input id="pq" placeholder="Поиск…" style="width:100%;margin-bottom:12px"><div class="cgrid" id="pg" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))"></div>`);
- const draw=()=>{const q=$('#pq').value.toLowerCase();$('#pg').innerHTML=DB.all.filter(c=>c.n.toLowerCase().includes(q)).map(c=>{const k=BT.cases.filter(x=>x===c.id).length;return`<div class="case" data-id="${c.id}">${cbadge(c)}${k?`<span class="new" style="background:var(--acc)">x${k}</span>`:''}<img src="${esc(c.i||GUN)}" style="${cf(c)}" loading="lazy" onerror="imgErr(this)"><div class="cn">${esc(c.n)}</div><div class="cp">${fmt(c.price)}</div></div>`}).join('');
-  $$('#pg .case').forEach(e=>e.onclick=()=>{if(BT.cases.length>=10){toast('Максимум 10 раундов','bad');return}BT.cases.push(e.dataset.id);beep(900,.04,'triangle',.05);draw()})};
- $('#pq').oninput=draw;draw()}
-async function runBattle(){
- const cases=BT.cases.map(id=>DB.byId[id]);const cost=cases.reduce((a,c)=>a+c.price,0);
- busy=true;const l0=spend(cost);S.st.bp++;S.st.opened+=cases.length;save();
- const bots=[...BOTS].sort(()=>Math.random()-.5);
- const P=[{name:S.nick,av:myAv(),col:AVC[S.avc%AVC.length],me:true,items:[],tot:0}];
- for(let i=1;i<BT.players;i++)P.push({name:bots[i],av:initial(bots[i]),col:rnd(AVC),items:[],tot:0});
- main.innerHTML=`<div class="arena"><div class="row" style="justify-content:space-between;margin:6px 0 10px"><h2 style="margin:0">Батл ${BT.crazy?'<span style="color:var(--vio)">безумный</span>':''}</h2><div>Банк: <b id="pot" style="color:var(--acc)">0 ₽</b></div></div>
+ $('#bgo').onclick=()=>createRoom(cost);
+ lobbyDraw()}
+
+function lobbyDraw(){const L=$('#lobby');if(!L||PAGE!=='battles'||MQ.room)return;
+ $('#mqst').innerHTML=MQ.ok?'<span style="color:var(--good)">● онлайн</span>':'<span style="color:var(--bad)">● подключение…</span>';
+ const rooms=Object.values(MQ.rooms).filter(roomAlive).sort((a,b)=>b.ts-a.ts);
+ L.innerHTML=rooms.length?rooms.map(r=>`<div class="lroom"><div class="lcases">${r.cases.slice(0,6).map(id=>{const c=DB.byId[id];return c?`<img src="${esc(c.i||GUN)}" style="${cf(c)}" onerror="imgErr(this)" title="${esc(c.n)}">`:''}).join('')}${r.cases.length>6?`<span class="mut">+${r.cases.length-6}</span>`:''}</div>
+  <div class="linfo"><b>${esc(r.players[0].name)}</b><span class="mut">${r.cases.length} раунд. ${r.crazy?'· безумный':''}</span></div>
+  <div class="lslots">${Array.from({length:r.max},(_,i)=>{const p=r.players[i];return`<div class="av sm" style="background:${p?p.col:'#1a1e2d'};${p?'':'border:1px dashed #3a4160'}">${p?initial(p.name):''}</div>`}).join('')}</div>
+  <div class="lcost">${fmt(r.cost)}</div><button class="btn sm" data-join="${r.id}" ${r.players.some(p=>p.pid===pid())?'disabled':''}>Войти</button></div>`).join('')
+  :`<div class="empty">${MQ.ok?'Пока нет открытых батлов — создай свой!':'Подключаемся к серверу батлов…'}</div>`;
+ $$('[data-join]').forEach(b=>b.onclick=()=>joinRoom(b.dataset.join))}
+
+function createRoom(cost){if(!MQ.ok)return toast('Нет подключения к серверу батлов','bad');if(!BT.cases.length)return;if(S.bal<cost)return toast('Недостаточно средств','bad');
+ const l0=spend(cost);const r={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),cases:[...BT.cases],max:BT.players,crazy:BT.crazy,cost,players:[mePlayer()],state:'open'};
+ MQ.room={id:r.id,host:true,paid:true,l0,data:r};pubRoom(r);
+ clearInterval(MQ.hb);MQ.hb=setInterval(()=>{if(MQ.room&&MQ.room.host&&MQ.room.data.state==='open')pubRoom(MQ.room.data)},30000);
+ busy=true;waitRoom()}
+function joinRoom(id){const r=MQ.rooms[id];if(!roomAlive(r))return toast('Батл уже недоступен','bad');if(S.bal<r.cost)return toast('Недостаточно средств','bad');
+ MQ.room={id,host:false,paid:false,data:r,asked:Date.now()};busy=true;sendCtl(id,{type:'join',p:mePlayer()});waitRoom();
+ setTimeout(()=>{if(MQ.room&&MQ.room.id===id&&!MQ.room.paid){toast('Хост не ответил','bad');leaveRoom(true)}},12000)}
+function leaveRoom(silent){const R=MQ.room;if(!R)return;
+ if(R.host){delRoom(R.id);clearInterval(MQ.hb)}else sendCtl(R.id,{type:'leave',pid:pid()});
+ if(R.paid&&R.data.state==='open'){S.bal+=R.data.cost;S.xp=Math.max(0,S.xp-R.data.cost);S.st.wag-=R.data.cost;save();bump();if(!silent)toast('Ставка возвращена')}
+ MQ.room=null;busy=false;pageBattles()}
+function onCtl(id,d){const R=MQ.room;if(!R||!R.host||R.id!==id||!d)return;const r=R.data;if(r.state!=='open')return;
+ if(d.type==='join'&&d.p&&!r.players.some(p=>p.pid===d.p.pid)&&r.players.length<r.max){r.players.push({pid:String(d.p.pid).slice(0,40),name:String(d.p.name||'Игрок').slice(0,16),col:String(d.p.col||'#8b5cff').slice(0,9)});beep(900,.06,'triangle',.06);pubRoom(r);waitDraw();if(r.players.length>=r.max)startRoom()}
+ if(d.type==='leave'){r.players=r.players.filter((p,i)=>i===0||p.pid!==d.pid);pubRoom(r);waitDraw()}}
+function onMyRoom(d){const R=MQ.room;if(R.host)return;
+ if(!d){if(R.data.state==='open'){toast('Хост отменил батл','bad');leaveRoom()}return}
+ R.data=d;const inRoom=d.players.some(p=>p.pid===pid());
+ if(inRoom&&!R.paid){if(S.bal<d.cost){sendCtl(R.id,{type:'leave',pid:pid()});toast('Недостаточно средств','bad');MQ.room=null;busy=false;return pageBattles()}R.l0=spend(d.cost);R.paid=true;toast('Ты в батле! Ждём игроков…','good')}
+ if(!inRoom&&R.paid&&d.state==='open'){toast('Тебя исключили из батла','bad');leaveRoom();return}
+ if(d.state==='started'&&inRoom&&!R.played){R.played=true;playArena(d)}
+ else if(d.state==='open'&&!inRoom&&d.players.length>=d.max&&!R.paid){toast('Мест нет','bad');MQ.room=null;busy=false;pageBattles()}
+ else waitDraw()}
+function addBot(){const r=MQ.room.data;if(r.players.length>=r.max)return;const used=new Set(r.players.map(p=>p.name));const n=BOTS.find(b=>!used.has(b))||'Bot';
+ r.players.push({pid:'bot_'+Math.random().toString(36).slice(2,7),name:n,col:rnd(AVC),bot:true});pubRoom(r);waitDraw();if(r.players.length>=r.max)startRoom()}
+function startRoom(){const R=MQ.room,r=R.data;clearInterval(MQ.hb);
+ const mk=(it)=>({n:it.n,w:it.w,st:it.st,p:it.p});
+ r.res=r.cases.map(id=>r.players.map(()=>mk(rollCase(DB.byId[id],true))));
+ const tot=r.players.map((p,i)=>r.res.reduce((s,rd)=>s+rd[i].p,0));const best=r.crazy?Math.min(...tot):Math.max(...tot);const cand=tot.map((v,i)=>i).filter(i=>tot[i]===best);
+ r.win=rnd(cand);r.state='started';pubRoom(r);setTimeout(()=>delRoom(r.id),15000);R.played=true;playArena(r)}
+
+function waitRoom(){main.innerHTML=`<div class="panel wroom"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Ожидание игроков</h2><span id="mqst2" class="mut"></span></div>
+ <div class="lcases big" id="wcases"></div><div class="wslots" id="wslots"></div><div class="mut" id="winfo" style="text-align:center;margin:10px 0"></div>
+ <div class="row" style="justify-content:center"><button class="btn ghost" id="wleave">Выйти</button><button class="btn" id="wbot" style="display:none">Добавить бота</button></div></div>`;
+ $('#wleave').onclick=()=>leaveRoom();$('#wbot').onclick=addBot;waitDraw()}
+function waitDraw(){const R=MQ.room;if(!R||!$('#wslots'))return;const r=R.data;
+ $('#wcases').innerHTML=r.cases.map(id=>{const c=DB.byId[id];return c?`<img src="${esc(c.i||GUN)}" style="${cf(c)}" onerror="imgErr(this)" title="${esc(c.n)}">`:''}).join('');
+ $('#wslots').innerHTML=Array.from({length:r.max},(_,i)=>{const p=r.players[i];return`<div class="wslot ${p?'on':''}"><div class="av" style="background:${p?p.col:'#1a1e2d'}">${p?(p.pid===pid()?myAv():initial(p.name)):'?'}</div><b>${p?esc(p.name)+(p.bot?' 🤖':''):'Свободно'}</b>${p&&p.pid===pid()?'<span class="mut">вы</span>':''}</div>`}).join('').replace(/ 🤖/g,' <span class="mut">бот</span>');
+ $('#winfo').innerHTML=`Вход: <b style="color:var(--acc)">${fmt(r.cost)}</b> · ${r.players.length}/${r.max} игроков${r.crazy?' · безумный режим':''}${R.paid?'':'<br>Подключаемся к батлу…'}`;
+ $('#wbot').style.display=R.host&&r.players.length<r.max?'':'none'}
+
+async function playArena(r){busy=true;const R=MQ.room;const meI=r.players.findIndex(p=>p.pid===pid());
+ const cases=r.cases.map(id=>DB.byId[id]);const byName=new Map(DB.skins.map(s=>[s.n,s]));
+ const toItem=x=>{const s=byName.get(x.n)||{n:x.n,i:'',c:'#b0c3d9',t:'milspec'};return{u:0,n:x.n,i:s.i,c:s.c,t:s.t,w:x.w,st:x.st,p:x.p,f:+(Math.random()*.3+.05).toFixed(4)}};
+ const P=r.players.map((p,i)=>({...p,me:i===meI,items:[],tot:0}));
+ if(meI>=0){S.st.bp++;S.st.opened+=cases.length;save()}
+ main.innerHTML=`<div class="arena"><div class="row" style="justify-content:space-between;margin:6px 0 10px"><h2 style="margin:0">Батл ${r.crazy?'<span style="color:var(--vio)">безумный</span>':''}</h2><div>Банк: <b id="pot" style="color:var(--acc)">0 ₽</b></div></div>
  <div class="rounds" id="rds">${cases.map((c,k)=>`<img src="${esc(c.i||GUN)}" style="${cf(c)}" title="${esc(c.n)}" onerror="imgErr(this)" id="rd${k}">`).join('')}</div>
- <div class="cols" style="--p:${P.length}">${P.map((p,i)=>`<div class="pcol" id="pc${i}"><div class="phead"><div class="av" style="background:${p.col}">${p.av}</div><div class="pn">${esc(p.name)}${p.me?' <span class="mut">(вы)</span>':''}</div><div class="ptotal" id="pt${i}">0 ₽</div></div><div class="vreel" id="pv${i}"><div class="track"></div><div class="mark"></div></div><div class="pitems" id="pi${i}"></div></div>`).join('')}</div><div id="bres"></div></div>`;
+ <div class="cols" style="--p:${P.length}">${P.map((p,i)=>`<div class="pcol" id="pc${i}"><div class="phead"><div class="av" style="background:${p.col}">${p.me?myAv():initial(p.name)}</div><div class="pn">${esc(p.name)}${p.me?' <span class="mut">(вы)</span>':p.bot?' <span class="mut">(бот)</span>':''}</div><div class="ptotal" id="pt${i}">0 ₽</div></div><div class="vreel" id="pv${i}"><div class="track"></div><div class="mark"></div></div><div class="pitems" id="pi${i}"></div></div>`).join('')}</div><div id="bres"></div></div>`;
  P.forEach((p,i)=>{let h='';for(let k=0;k<6;k++)h+=rcHTML(fillerVis(cases[0]),110,'y');$(`#pv${i} .track`).innerHTML=h});
  let pot=0;
- for(let r=0;r<cases.length;r++){const c=cases[r];$$('#rds img').forEach((im,k)=>{im.classList.toggle('cur',k===r);im.classList.toggle('done',k<r)});$('#rd'+r).scrollIntoView({block:'nearest',inline:'center'});
-  const wins=P.map((p,i)=>rollCase(c,!p.me));
+ for(let k=0;k<cases.length;k++){const c=cases[k];$$('#rds img').forEach((im,j)=>{im.classList.toggle('cur',j===k);im.classList.toggle('done',j<k)});$('#rd'+k).scrollIntoView({block:'nearest',inline:'center'});
+  const wins=r.res[k].map(toItem);
   await Promise.all(P.map((p,i)=>{const vp=$('#pv'+i);const{html,idx}=reelHTML(c,wins[i],110,'y',40,32);return spin(vp.querySelector('.track'),vp,html,idx,{axis:'y',size:110,dur:S.fast?1500:4300,sound:i===0})}));
   wins.forEach((w,i)=>{P[i].items.push(w);P[i].tot+=w.p;pot+=w.p;$('#pt'+i).textContent=fmt(P[i].tot);$('#pi'+i).insertAdjacentHTML('beforeend',`<div class="mini" style="--rc:${w.c}" title="${esc(w.n)}"><img src="${esc(w.i||GUN)}" onerror="imgErr(this)"><div>${fmt(w.p)}</div></div>`);if(!P[i].me)pushTicker(w,P[i].name)});
   $('#pot').textContent=fmt(pot);
   if(wins.some(w=>w.t==='rare'))bigS();else if(wins.some(w=>w.t==='covert'))winS();
   await sleep(S.fast?300:700)}
  $$('#rds img').forEach(im=>{im.classList.remove('cur');im.classList.add('done')});
- const vals=P.map(p=>p.tot);const best=BT.crazy?Math.min(...vals):Math.max(...vals);const cand=P.map((p,i)=>i).filter(i=>vals[i]===best);const wi=rnd(cand);
- P.forEach((p,i)=>$('#pc'+i).classList.add(i===wi?'win':'lose'));
- const me=wi===0;const all=P.flatMap(p=>p.items);
- if(me){all.forEach(it=>{if(!it.u)it.u=S.uid++});S.st.bw++;addInv(all);bigS()}else{loseS();save()}
- $('#bres').innerHTML=`<div class="banner ${me?'w':'l'}">${me?`Победа! Вы забираете ${all.length} скинов на ${fmt(pot)}`:`Победил ${esc(P[wi].name)} (${fmt(P[wi].tot)})`}</div><div class="row" style="justify-content:center;margin-top:12px"><button class="btn ghost" id="bback">← К батлам</button><button class="btn" id="bagain">Ещё раз за ${fmt(cost)}</button>${me?'<button class="btn green" id="bshow">Посмотреть дроп</button>':''}</div>`;
- busy=false;levelCheck(l0);
- $('#bback').onclick=()=>go('battles');$('#bagain').onclick=()=>{if(S.bal<cost){toast('Недостаточно средств','bad');return}runBattle()};
- const bs=$('#bshow');if(bs)bs.onclick=()=>showDrops(all,'Ваш выигрыш в батле')}
+ const wi=r.win;P.forEach((p,i)=>$('#pc'+i).classList.add(i===wi?'win':'lose'));
+ const me=wi===meI;const all=P.flatMap(p=>p.items);
+ if(me){all.forEach(it=>it.u=S.uid++);S.st.bw++;addInv(all);bigS()}else{loseS();save()}
+ $('#bres').innerHTML=`<div class="banner ${me?'w':'l'}">${me?`Победа! Вы забираете ${all.length} скинов на ${fmt(pot)}`:`Победил ${esc(P[wi].name)} (${fmt(P[wi].tot)})`}</div><div class="row" style="justify-content:center;margin-top:12px"><button class="btn ghost" id="bback">← К батлам</button>${me?'<button class="btn green" id="bshow">Посмотреть дроп</button>':''}</div>`;
+ const l0=R&&R.l0;MQ.room=null;busy=false;if(l0!==undefined)levelCheck(l0);
+ $('#bback').onclick=()=>go('battles');const bs=$('#bshow');if(bs)bs.onclick=()=>showDrops(all,'Ваш выигрыш в батле')}
 
+function casePicker(){
+ openModal(`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Добавить кейс</h2><button class="btn" onclick="closeModal();pageBattles()">Готово</button></div><input id="pq" placeholder="Поиск…" style="width:100%;margin-bottom:12px"><div class="cgrid" id="pg" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))"></div>`);
+ const draw=()=>{const q=$('#pq').value.toLowerCase();$('#pg').innerHTML=DB.all.filter(c=>c.n.toLowerCase().includes(q)).map(c=>{const k=BT.cases.filter(x=>x===c.id).length;return`<div class="case" data-id="${c.id}">${cbadge(c)}${k?`<span class="new" style="background:var(--acc)">x${k}</span>`:''}<img src="${esc(c.i||GUN)}" style="${cf(c)}" loading="lazy" onerror="imgErr(this)"><div class="cn">${esc(c.n)}</div><div class="cp">${fmt(c.price)}</div></div>`}).join('');
+  $$('#pg .case').forEach(e=>e.onclick=()=>{if(BT.cases.length>=10){toast('Максимум 10 раундов','bad');return}BT.cases.push(e.dataset.id);beep(900,.04,'triangle',.05);draw()})};
+ $('#pq').oninput=draw;draw()}
 /* ================= АПГРЕЙД ================= */
 const UP={sel:[],target:null,rot:0,pc:null};
 function pageUpgrade(){
@@ -968,7 +1053,7 @@ function pickAvatar(cb){const inp=document.createElement('input');inp.type='file
  inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const N=160,cv=document.createElement('canvas');cv.width=cv.height=N;const k=Math.min(im.width,im.height);
   cv.getContext('2d').drawImage(im,(im.width-k)/2,(im.height-k)/2,k,k,0,0,N,N);cb(cv.toDataURL('image/jpeg',.85))};im.onerror=()=>toast('Не удалось открыть картинку','bad');im.src=r.result};r.readAsDataURL(f)};inp.click()}
 const IS_APP=!!window.Android;const IS_IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-function steamLogin(){if(busy){toast('Дождись окончания игры','bad');return}
+function steamLogin(){if(busy){toast('Дождись окончания игры или выйди из батла','bad');return}
  if(!IS_APP){openModal(`<h2 style="margin:0 0 8px">Вход через Steam</h2><p class="mut">${IS_IOS?'На iPhone вход через Steam пока недоступен — играй гостевым профилем, прогресс сохраняется на телефоне.':'Вход через Steam работает в приложении CaseBattle (APK) для Android.'} В приложении кнопка откроет официальную страницу Steam — входишь или подтверждаешь вход в мобильном Steam, и тебя возвращает в игру.</p><div class="row" style="justify-content:flex-end"><button class="btn" id="sok">Понятно</button></div>`,true);$('#sok').onclick=()=>S.reg?closeModal():regModal();return}
  try{window.Android.steamLogin()}catch(e){toast('Не удалось открыть Steam','bad')}}
 window.steamDone=o=>{closeModal();
