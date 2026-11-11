@@ -673,9 +673,9 @@ function mqLoad(){return new Promise((res,rej)=>{if(window.mqtt)return res();con
  add('https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js',()=>add('https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js',rej))})}
 async function mqConnect(){if(MQ.c)return;try{await mqLoad()}catch(e){toast('Не удалось загрузить онлайн-модуль','bad');return}
  MQ.c=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{clientId:'cb_'+Math.random().toString(16).slice(2,12),reconnectPeriod:3000,connectTimeout:12000,clean:true});
- MQ.c.on('connect',()=>{MQ.ok=true;MQ.c.subscribe([MQT+'rooms/+',MQT+'rooms/+/ctl',MQT+'admin/revoked']);lobbyDraw()});
+ MQ.c.on('connect',()=>{MQ.ok=true;MQ.c.subscribe([MQT+'rooms/+',MQT+'rooms/+/ctl',MQT+'admin/revoked']);mqSubMe();lobbyDraw()});
  MQ.c.on('close',()=>{MQ.ok=false;lobbyDraw()});
- MQ.c.on('message',(t,m)=>{if(t===MQT+'admin/revoked')return onRevoked(m.toString());const parts=t.split('/'),id=parts[3],ctl=parts[4]==='ctl';let d=null;const s=m.toString();if(s)try{d=JSON.parse(s)}catch(e){return}
+ MQ.c.on('message',(t,m)=>{if(t===MQT+'admin/revoked')return onRevoked(m.toString());if(t.startsWith(MQT+'cmd/'))return onCmds(m.toString());const parts=t.split('/'),id=parts[3],ctl=parts[4]==='ctl';let d=null;const s=m.toString();if(s)try{d=JSON.parse(s)}catch(e){return}
   if(ctl)return onCtl(id,d);
   if(!d){delete MQ.rooms[id]}else MQ.rooms[id]=d;
   if(MQ.room&&MQ.room.id===id)onMyRoom(d);
@@ -1066,10 +1066,10 @@ window.steamDone=o=>{closeModal();
  const guest=!CUR?S:null;CUR=o.id;try{localStorage.setItem('cb_cur',CUR)}catch(e){}
  if(saved){loadS();toast(`С возвращением, ${o.name}!`,'good')}
  else{if(guest&&guest.reg){S=guest;try{localStorage.removeItem(SKEY)}catch(e){}toast('Steam привязан, прогресс перенесён','good')}else{S=JSON.parse(JSON.stringify(DEF));S.bal=startBal();toast(`Добро пожаловать, ${o.name}!`,'good')}}
- S.steam=o.id;if(o.name)S.nick=o.name.slice(0,16);if(o.avatar){S.avimg=o.avatar;S.avOwn=false}S.reg=true;save();winS();go('profile');if(!o.profileOk)setTimeout(()=>toast('Не удалось загрузить ник и аватар из Steam — попробуй войти ещё раз','bad'),900)};
+ S.steam=o.id;if(o.name)S.nick=o.name.slice(0,16);if(o.avatar){S.avimg=o.avatar;S.avOwn=false}S.reg=true;save();mqSubMe();winS();go('profile');if(!o.profileOk)setTimeout(()=>toast('Не удалось загрузить ник и аватар из Steam — попробуй войти ещё раз','bad'),900)};
 window.steamWait=()=>toast('Проверяю вход в Steam…');
 window.steamFail=m=>{toast(m==='cancel'?'Вход через Steam отменён':'Не удалось войти через Steam','bad');if(!S.reg)regModal()};
-function steamLogout(){if(busy)return;CUR='';try{localStorage.setItem('cb_cur','')}catch(e){}loadS();save();toast('Вы вышли из аккаунта');go('cases');if(!S.reg)regModal()}
+function steamLogout(){if(busy)return;CUR='';try{localStorage.setItem('cb_cur','')}catch(e){}loadS();save();mqSubMe();toast('Вы вышли из аккаунта');go('cases');if(!S.reg)regModal()}
 function regModal(){let img=S.avimg||'';
  openModal(`<div style="text-align:center"><div class="logo" style="font-size:28px">CASE<b>//</b>BATTLE</div><p class="mut" style="margin:6px 0 16px">Войди через Steam или создай гостевой профиль</p></div>
  <button class="btn steam big" id="rst" style="width:100%">${ic('steam')} Войти через Steam</button>
@@ -1134,6 +1134,24 @@ async function redeem(code){code=code.replace(/\s+/g,'');const m=code.match(/^CB
  if(p.t!=='*'&&p.t!==pid())return toast('Этот код выдан другому игроку','bad');
  S.used=S.used||[];if(S.used.includes(p.n))return toast('Код уже активирован','bad');
  S.used.push(p.n);S.bal+=p.a;save();bump();bigS();toast('Начислено '+fmt(p.a),'good');return true}
+/* --- удалённые команды админа (забрать / выдать деньги) --- */
+let MQ_MYSUB='';
+function mqSubMe(){if(!MQ.c||!MQ.ok)return;const t=MQT+'cmd/'+pid();if(MQ_MYSUB&&MQ_MYSUB!==t)MQ.c.unsubscribe(MQ_MYSUB);MQ_MYSUB=t;MQ.c.subscribe(t)}
+async function verifyCmd(str){const m=String(str).match(/^([\w-]+)\.([\w-]+)(?:\.([\w-]+~[\w-]+))?$/);if(!m)return null;
+ let key=await pubKey();if(m[3]){const g=await checkGrant(m[3]);if(!g||REVOKED.includes(g.g))return null;key=await crypto.subtle.importKey('jwk',{kty:'EC',crv:'P-256',x:g.x,y:g.y,ext:true},{name:'ECDSA',namedCurve:'P-256'},false,['verify'])}
+ if(!await crypto.subtle.verify(ECP,key,ub64u(m[2]),enc(m[1])))return null;return JSON.parse(dec(ub64u(m[1])))}
+async function onCmds(s){let o;try{o=JSON.parse(s)}catch(e){return}if(!o||!Array.isArray(o.cmds))return;S.used=S.used||[];
+ for(const str of o.cmds){let c;try{c=await verifyCmd(str)}catch(e){c=null}if(!c||c.p!==pid()||S.used.includes(c.n))continue;S.used.push(c.n);
+  if(c.op==='take'){const t=Math.min(S.bal,c.a);S.bal-=t;let msg='Администратор забрал '+fmt(t);if(c.inv&&S.inv.length){S.inv=[];msg+=' и все скины'}toast(msg,'bad')}
+  else if(c.op==='zero'){S.bal=0;if(c.inv)S.inv=[];toast('Администратор обнулил баланс'+(c.inv?' и инвентарь':''),'bad')}
+  else if(c.op==='give'){S.bal+=c.a;toast('Администратор начислил '+fmt(c.a),'good');bigS()}
+  save();bump();if(PAGE==='profile')pageProfile()}}
+async function sendCmd(to,op,a,inv){if(!isAdmin())return;await mqConnect();if(!MQ.c||!MQ.ok)return toast('Нет связи с сервером, попробуй позже','bad');
+ const p={p:to,op,a:Math.floor(a||0),inv:!!inv,n:'c'+Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
+ const str=data+'.'+b64u(await crypto.subtle.sign(ECP,ADMK,enc(data)))+(ADMROLE==='sub'?'.'+ADMGRANT:'');
+ const all=JSON.parse(localStorage.getItem('cb_cmds')||'{}');const L=(all[to]||[]).concat(str).slice(-20);all[to]=L;localStorage.setItem('cb_cmds',JSON.stringify(all));
+ MQ.c.publish(MQT+'cmd/'+to,JSON.stringify({cmds:L}),{retain:true,qos:1});
+ if(to===pid())setTimeout(()=>{},0);return true}
 function adminUnlock(){openModal(`<h2 style="margin:0 0 8px">Вход в админку</h2><p class="mut">Вставь ключ администратора (CBADMIN-…) или ключ помощника, который тебе выдали (CBSUB-…).</p><button class="btn sm ghost" id="akp" style="margin-bottom:6px">Вставить из буфера</button><textarea id="akey" rows="4" style="width:100%;font:inherit;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:10px"></textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" id="ago">Войти</button></div>`);
  $('#akp').onclick=()=>pasteInto('#akey');
  $('#ago').onclick=async()=>{const t=$('#akey').value.replace(/\s+/g,'');if(!/^CB(ADMIN|SUB)-/.test(t))return toast('Это не ключ админа','bad');
@@ -1150,6 +1168,12 @@ function pageAdmin(){if(!isAdmin())return go('cases');
   <div class="field"><label>Сумма</label><input id="aam" type="number" min="1" value="1000"><div class="qb"><button data-v="500">500</button><button data-v="1000">1000</button><button data-v="5000">5000</button><button data-v="10000">10к</button><button data-v="100000">100к</button></div></div>
   <button class="btn big" id="agen" style="width:100%">Создать код</button>
   <div id="aout" style="margin-top:12px"></div></div>
+ <div class="panel"><h3 style="margin:0 0 12px">Забрать / начислить напрямую</h3>
+  <div class="mut" style="font-size:12px;margin-bottom:10px">Без кодов: деньги спишутся или начислятся у игрока сами, как только он будет в игре с интернетом.</div>
+  <div class="field"><label>ID игрока</label><div class="row"><input id="tto" placeholder="ID из профиля игрока" style="flex:1;min-width:0"><button class="btn sm ghost" id="ttop">Вставить</button></div></div>
+  <div class="field"><label>Сумма</label><input id="tam" type="number" min="1" value="1000"></div>
+  <label class="chk" style="margin-bottom:10px"><input type="checkbox" id="tinv"> Забрать ещё и все скины из инвентаря</label>
+  <div class="row"><button class="btn red" id="ttake" style="flex:1">Забрать</button><button class="btn ghost" id="tzero" style="flex:1">Обнулить баланс</button><button class="btn green" id="tgive" style="flex:1">Начислить</button></div></div>
  <div class="panel"><h3 style="margin:0 0 12px">Себе</h3><div class="row"><input id="aself" type="number" value="10000" style="flex:1"><button class="btn green" id="aselfb">Начислить</button></div>
   <div class="row" style="margin-top:10px"><input id="aset" type="number" placeholder="Точный баланс" style="flex:1"><button class="btn ghost" id="asetb">Установить</button></div>
   <h3 style="margin:18px 0 10px">Созданные коды</h3><div class="hist" id="ahist">${hist.slice(0,30).map(h=>`<div class="hl" style="--rc:var(--acc)"><div class="t">${fmt(h.a)} → ${esc(h.t==='*'?'любой':h.t)}</div><button class="btn sm ghost" data-c="${esc(h.c)}">Копировать</button></div>`).join('')||'<div class="mut">Пока нет</div>'}</div>
@@ -1167,7 +1191,11 @@ function pageAdmin(){if(!isAdmin())return go('cases');
   const code=await makeCode(a,all?'*':to);hist.unshift({a,t:all?'*':to,c:code,d:Date.now()});localStorage.setItem('cb_codes',JSON.stringify(hist.slice(0,100)));
   $('#aout').innerHTML=`<div class="mut" style="font-size:12px;margin-bottom:6px">Отправь этот код игроку — он вводит его в профиле:</div><textarea readonly rows="4" style="width:100%;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:10px">${code}</textarea><button class="btn" id="acp" style="width:100%;margin-top:6px">Копировать код</button>`;
   $('#acp').onclick=()=>copy(code);$('#aout textarea').onclick=e=>e.target.select()};
- $('#aselfb').onclick=()=>{const v=Math.floor(+$('#aself').value);if(v){S.bal+=v;save();bump();toast('+'+fmt(v),'good')}};
+ $('#ttop').onclick=()=>pasteInto('#tto');
+ const tgo=async(op)=>{const to=$('#tto').value.replace(/\s+/g,''),a=Math.floor(+$('#tam').value),inv=$('#tinv').checked;if(!to)return toast('Укажи ID игрока','bad');if(op!=='zero'&&!(a>0))return toast('Укажи сумму','bad');
+  if(await sendCmd(to,op,a,inv))toast(op==='give'?'Начисление отправлено':'Списание отправлено','good')};
+ $('#ttake').onclick=()=>tgo('take');$('#tzero').onclick=()=>tgo('zero');$('#tgive').onclick=()=>tgo('give');
+$('#aselfb').onclick=()=>{const v=Math.floor(+$('#aself').value);if(v){S.bal+=v;save();bump();toast('+'+fmt(v),'good')}};
  $('#asetb').onclick=()=>{const v=Math.floor(+$('#aset').value);if(v>=0){S.bal=v;save();bump();toast('Баланс: '+fmt(v),'good')}};
  if(isMaster()){const G=()=>JSON.parse(localStorage.getItem('cb_grants')||'[]');
   const gdraw=()=>{const L=G();$('#glist').innerHTML=L.map(g=>{const rv=REVOKED.includes(g.g);return`<div class="hl" style="--rc:${rv?'var(--bad)':'var(--good)'}"><div class="t"><b>${esc(g.n)}</b> <span class="mut">${g.g}${rv?' · отозвана':''}</span></div>${rv?`<button class="btn sm ghost" data-ret="${g.g}">Вернуть</button>`:`<button class="btn sm red" data-rev="${g.g}">Забрать</button>`}</div>`}).join('')||'<div class="mut">Пока никому не выдана</div>';
