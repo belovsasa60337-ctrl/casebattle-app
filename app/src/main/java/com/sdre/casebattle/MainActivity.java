@@ -338,6 +338,30 @@ public class MainActivity extends Activity {
         public void steamLogin() { runOnUiThread(() -> startSteam()); }
         @JavascriptInterface
         public boolean isApp() { return true; }
+        @JavascriptInterface
+        public void copy(String t) {
+            runOnUiThread(() -> {
+                android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("CaseBattle", t));
+            });
+        }
+        @JavascriptInterface
+        public String paste() {
+            final String[] out = {""};
+            final java.util.concurrent.CountDownLatch l = new java.util.concurrent.CountDownLatch(1);
+            runOnUiThread(() -> {
+                try {
+                    android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    if (cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0) {
+                        CharSequence c = cm.getPrimaryClip().getItemAt(0).coerceToText(MainActivity.this);
+                        out[0] = c == null ? "" : c.toString();
+                    }
+                } catch (Exception ignored) {}
+                l.countDown();
+            });
+            try { l.await(2, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception ignored) {}
+            return out[0];
+        }
     }
 
     @Override

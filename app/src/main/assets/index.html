@@ -906,8 +906,8 @@ function pageProfile(){
   <div class="stat"><span>Стоимость инвентаря</span><b>${fmt(invSum())}</b></div>
  </div></div>
  ${st.best?`<h2>Лучший дроп</h2><div style="max-width:220px">${itemCard(st.best)}</div>`:''}
- <div class="panel promo"><div><div class="mut" style="font-size:12px">Твой ID игрока</div><div class="row"><b id="mypid" style="font-size:16px;letter-spacing:.5px">${pid()}</b><button class="btn sm ghost" id="cppid">Копировать</button></div></div>
- <div style="flex:1;min-width:240px"><div class="mut" style="font-size:12px">Промокод</div><div class="row"><input id="promo" placeholder="CB-…" style="flex:1"><button class="btn sm" id="promob">Активировать</button></div></div></div>
+ <div class="panel promo"><div><div class="mut" style="font-size:12px">Твой ID игрока</div><div class="row"><b id="mypid" style="font-size:16px;letter-spacing:.5px;user-select:all;-webkit-user-select:all">${pid()}</b><button class="btn sm ghost" id="cppid">Копировать</button></div></div>
+ <div style="flex:1;min-width:240px"><div class="mut" style="font-size:12px">Промокод</div><div class="row"><input id="promo" placeholder="CB-…" style="flex:1"><button class="btn sm ghost" id="pastep">Вставить</button><button class="btn sm" id="promob">Активировать</button></div></div></div>
  <h2>Инвентарь (${S.inv.length})</h2>
  <div class="toolbar"><select id="isort"><option value="new">Сначала новые</option><option value="exp">Дороже</option><option value="cheap">Дешевле</option></select><button class="btn ghost" id="sellch">Продать всё дешевле 100 ₽</button><button class="btn red" id="sellall" ${S.inv.length?'':'disabled'}>Продать всё (${fmt(invSum())})</button></div>
  <div class="igrid" id="pinv"></div>
@@ -917,7 +917,7 @@ function pageProfile(){
  {const a=$('#sin');if(a)a.onclick=steamLogin;const b=$('#sout');if(b)b.onclick=steamLogout}
  $('#pcol').onclick=()=>{S.avc=(S.avc+1)%AVC.length;save();pageProfile()};
   $('#pnick').onchange=e=>{S.nick=e.target.value.trim().slice(0,16)||'Игрок';save();if(!S.avimg)pageProfile()};
- $('#cppid').onclick=async()=>{try{await navigator.clipboard.writeText(pid());toast('ID скопирован','good')}catch(e){toast('ID: '+pid())}};$('#promob').onclick=async()=>{if(await redeem($('#promo').value))pageProfile()};
+ $('#cppid').onclick=()=>copyText(pid(),'ID скопирован');$('#pastep').onclick=()=>pasteInto('#promo');$('#promob').onclick=async()=>{if(await redeem($('#promo').value))pageProfile()};
  $('#isort').value=invSort;$('#isort').onchange=e=>{invSort=e.target.value;drawInv()};
  const drawInv=()=>{let a=[...S.inv];if(invSort==='exp')a.sort((x,y)=>y.p-x.p);if(invSort==='cheap')a.sort((x,y)=>x.p-y.p);
   $('#pinv').innerHTML=a.map(it=>itemCard(it,`<button class="btn sm" data-sell="${it.u}">Продать</button>`)).join('')||'<div class="empty" style="grid-column:1/-1">Инвентарь пуст — <a href="#" onclick="go(\'cases\');return false" style="color:var(--acc)">открой кейсы</a></div>';
@@ -961,6 +961,13 @@ function regModal(){let img=S.avimg||'';
  $('#rgo').onclick=()=>{const n=$('#rn').value.trim();if(n.length<2){toast('Ник минимум 2 символа','bad');return}S.nick=n.slice(0,16);S.avimg=img;if(!S.reg&&!S.st.wag)S.bal=startBal();S.reg=true;save();closeModal();$('#mbody').style.maxWidth='';toast(`Добро пожаловать, ${S.nick}!`,'good');if(PAGE==='profile')pageProfile()}}
 
 /* ================= АДМИНКА / ПРОМОКОДЫ ================= */
+async function copyText(t,msg='Скопировано'){
+ try{if(window.Android&&Android.copy){Android.copy(t);toast(msg,'good');return}}catch(e){}
+ try{await navigator.clipboard.writeText(t);toast(msg,'good');return}catch(e){}
+ const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';document.body.append(ta);ta.select();
+ let ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();toast(ok?msg:'Не удалось скопировать — выдели вручную',ok?'good':'bad')}
+async function pasteText(){try{if(window.Android&&Android.paste)return Android.paste()||''}catch(e){}try{return await navigator.clipboard.readText()}catch(e){}return ''}
+async function pasteInto(sel){const t=(await pasteText()).trim();if(t){$(sel).value=t;$(sel).dispatchEvent(new Event('input'))}else toast('Буфер пуст или нет доступа — вставь долгим нажатием','bad')}
 const ADMIN_PUB={"kty":"EC","crv":"P-256","x":"FmGRSxcNUIqI-jGbmrLhFBIxqpEzWkhJGjT67GdeCtY","y":"lsudiJ7jWvWSlkisrwkeakQOnVmy-po4SgZ3CNJgiHY"};
 const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const ub64u=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'==='.slice((s.length+3)%4)),c=>c.charCodeAt(0));
@@ -975,14 +982,15 @@ async function loadAdmin(){let t='';try{t=localStorage.getItem('cb_admin')||''}c
 function updAdminNav(){let b=$('#nav [data-p="admin"]');if(isAdmin()&&!b){$('#nav').insertAdjacentHTML('beforeend','<button data-p="admin"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Админ</button>');$('#nav [data-p="admin"]').onclick=()=>go('admin')}else if(!isAdmin()&&b)b.remove()}
 async function makeCode(amount,to){const p={a:Math.floor(amount),t:to||'*',n:Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
  const sig=await crypto.subtle.sign(ECP,ADMK,enc(data));return 'CB-'+data+'.'+b64u(sig)}
-async function redeem(code){code=code.trim();const m=code.match(/^CB-([\w-]+)\.([\w-]+)$/);if(!m)return toast('Неверный код','bad');
+async function redeem(code){code=code.replace(/\s+/g,'');const m=code.match(/^CB-([\w-]+)\.([\w-]+)$/);if(!m)return toast('Неверный код','bad');
  let ok=false,p;try{ok=await crypto.subtle.verify(ECP,await pubKey(),ub64u(m[2]),enc(m[1]));p=JSON.parse(new TextDecoder().decode(ub64u(m[1])))}catch(e){}
  if(!ok||!p||!(p.a>0))return toast('Код недействителен','bad');
  if(p.t!=='*'&&p.t!==pid())return toast('Этот код выдан другому игроку','bad');
  S.used=S.used||[];if(S.used.includes(p.n))return toast('Код уже активирован','bad');
  S.used.push(p.n);S.bal+=p.a;save();bump();bigS();toast('Начислено '+fmt(p.a),'good');return true}
-function adminUnlock(){openModal(`<h2 style="margin:0 0 8px">Вход в админку</h2><p class="mut">Вставь ключ администратора (начинается с CBADMIN-).</p><textarea id="akey" rows="4" style="width:100%;font:inherit;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:10px"></textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" id="ago">Войти</button></div>`);
- $('#ago').onclick=async()=>{const t=$('#akey').value.trim();try{const k=await admKey(t);const test=enc('check');const sig=await crypto.subtle.sign(ECP,k,test);if(!await crypto.subtle.verify(ECP,await pubKey(),sig,test))throw 0;
+function adminUnlock(){openModal(`<h2 style="margin:0 0 8px">Вход в админку</h2><p class="mut">Вставь ключ администратора (начинается с CBADMIN-).</p><button class="btn sm ghost" id="akp" style="margin-bottom:6px">Вставить из буфера</button><textarea id="akey" rows="4" style="width:100%;font:inherit;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:10px"></textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" id="ago">Войти</button></div>`);
+ $('#akp').onclick=()=>pasteInto('#akey');
+ $('#ago').onclick=async()=>{const t=$('#akey').value.trim();if(!t.startsWith('CBADMIN-'))return toast('Это не ключ админа. Ключ начинается с CBADMIN-','bad');try{const k=await admKey(t);const test=enc('check');const sig=await crypto.subtle.sign(ECP,k,test);if(!await crypto.subtle.verify(ECP,await pubKey(),sig,test))throw 0;
   ADMK=k;localStorage.setItem('cb_admin',t);updAdminNav();closeModal();toast('Админка открыта','good');go('admin')}catch(e){toast('Неверный ключ','bad')}}}
 let logoTaps=[];
 function logoTap(){const n=Date.now();logoTaps=logoTaps.filter(t=>n-t<2500);logoTaps.push(n);if(logoTaps.length>=7&&!isAdmin()){logoTaps=[];adminUnlock();return}go('cases')}
@@ -990,7 +998,7 @@ function pageAdmin(){if(!isAdmin())return go('cases');
  const hist=JSON.parse(localStorage.getItem('cb_codes')||'[]');
  main.innerHTML=`<div class="hero"><h1>Админка</h1><p>Выдача денег игрокам через подписанные коды. Подделать код без твоего ключа нельзя.</p></div>
  <div class="two"><div class="panel"><h3 style="margin:0 0 12px">Выдать деньги игроку</h3>
-  <div class="field"><label>ID игрока (в его профиле)</label><input id="ato" placeholder="Например 7656119… или PAB12CD3"></div>
+  <div class="field"><label>ID игрока (в его профиле)</label><div class="row"><input id="ato" placeholder="Например 7656119… или PAB12CD3" style="flex:1;min-width:0"><button class="btn sm ghost" id="atop">Вставить</button><button class="btn sm ghost" id="atome">Мой ID</button></div></div>
   <label class="chk" style="margin-bottom:10px"><input type="checkbox" id="aall"> Код для любого игрока (каждый может активировать 1 раз)</label>
   <div class="field"><label>Сумма</label><input id="aam" type="number" min="1" value="1000"><div class="qb"><button data-v="500">500</button><button data-v="1000">1000</button><button data-v="5000">5000</button><button data-v="10000">10к</button><button data-v="100000">100к</button></div></div>
   <button class="btn big" id="agen" style="width:100%">Создать код</button>
@@ -1000,10 +1008,11 @@ function pageAdmin(){if(!isAdmin())return go('cases');
   <h3 style="margin:18px 0 10px">Созданные коды</h3><div class="hist" id="ahist">${hist.slice(0,30).map(h=>`<div class="hl" style="--rc:var(--acc)"><div class="t">${fmt(h.a)} → ${esc(h.t==='*'?'любой':h.t)}</div><button class="btn sm ghost" data-c="${esc(h.c)}">Копировать</button></div>`).join('')||'<div class="mut">Пока нет</div>'}</div>
   <button class="btn ghost sm" id="aexit" style="margin-top:16px;color:var(--bad)">Выйти из админки на этом устройстве</button></div></div>`;
  $$('.qb [data-v]').forEach(b=>b.onclick=()=>$('#aam').value=b.dataset.v);
+ $('#atop').onclick=()=>pasteInto('#ato');$('#atome').onclick=()=>{$('#ato').value=pid()};
  $('#aall').onchange=e=>$('#ato').disabled=e.target.checked;
- const copy=async t=>{try{await navigator.clipboard.writeText(t);toast('Скопировано','good')}catch(e){toast('Выдели код и скопируй вручную')}};
+ const copy=t=>copyText(t);
  $$('#ahist [data-c]').forEach(b=>b.onclick=()=>copy(b.dataset.c));
- $('#agen').onclick=async()=>{const a=Math.floor(+$('#aam').value),all=$('#aall').checked,to=$('#ato').value.trim();if(!(a>0))return toast('Укажи сумму','bad');if(!all&&!to)return toast('Укажи ID игрока','bad');
+ $('#agen').onclick=async()=>{const a=Math.floor(+$('#aam').value),all=$('#aall').checked,to=$('#ato').value.replace(/\s+/g,'');if(!(a>0))return toast('Укажи сумму','bad');if(!all&&!to)return toast('Укажи ID игрока','bad');
   const code=await makeCode(a,all?'*':to);hist.unshift({a,t:all?'*':to,c:code,d:Date.now()});localStorage.setItem('cb_codes',JSON.stringify(hist.slice(0,100)));
   $('#aout').innerHTML=`<div class="mut" style="font-size:12px;margin-bottom:6px">Отправь этот код игроку — он вводит его в профиле:</div><textarea readonly rows="4" style="width:100%;font-size:12px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:10px">${code}</textarea><button class="btn" id="acp" style="width:100%;margin-top:6px">Копировать код</button>`;
   $('#acp').onclick=()=>copy(code);$('#aout textarea').onclick=e=>e.target.select()};
