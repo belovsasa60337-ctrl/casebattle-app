@@ -369,6 +369,10 @@ body{-webkit-text-size-adjust:100%;}
 .banr{margin-top:12px;background:#ff4d5e1a;border:1px solid #ff4d5e55;border-radius:12px;padding:10px 14px}
 .bantag{background:var(--bad);color:#fff;font-size:10px;padding:1px 6px;border-radius:6px;vertical-align:middle}
 .banrow{display:flex;gap:8px;margin-top:12px}.banrow input{flex:1;min-width:0}
+#updscr{position:fixed;inset:0;z-index:210;background:#07080dF5;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.banu{margin-top:14px;font-size:18px}
+.oldtag{background:#3a4160;color:#c7d0ee;font-size:10px;padding:1px 6px;border-radius:6px;vertical-align:middle}
+.banrow select{max-width:110px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -458,6 +462,7 @@ function applyPrices(){if(!PRICES)return;
  for(const s of DB.skins){const pw={};let any=false;for(const w of WEARS){const v=PRICES[mhn(s.n,w[0],false)];if(v){pw[w[0]]=Math.min(MAXP,v);any=true}}
   if(!any)continue;s.pw=pw;
   let tw=0,ev=0;for(const w of WEARS)if(pw[w[0]]){tw+=w[4];ev+=w[4]*pw[w[0]]}s.p=Math.max(1,Math.round(ev/tw))}}
+const APP_VER=31;
 const DBKEY='cb_db_v3', SKEY='cb_save_v1';
 const TIERS={consumer:['Ширпотреб','#b0c3d9'],industrial:['Промышленное','#5e98d9'],milspec:['Армейское','#4b69ff'],restricted:['Запрещённое','#8847ff'],classified:['Засекреченное','#d32ce6'],covert:['Тайное','#eb4b4b'],rare:['★ Редкий особый','#e4ae39']};
 const TORD=['rare','covert','classified','restricted','milspec','industrial','consumer'];
@@ -755,9 +760,9 @@ function mqLoad(){return new Promise((res,rej)=>{if(window.mqtt)return res();con
  add('https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js',()=>add('https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js',rej))})}
 async function mqConnect(){if(MQ.c)return;try{await mqLoad()}catch(e){toast('Не удалось загрузить онлайн-модуль','bad');return}
  MQ.c=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{clientId:'cb_'+Math.random().toString(16).slice(2,12),reconnectPeriod:3000,connectTimeout:12000,clean:true});
- MQ.c.on('connect',()=>{MQ.ok=true;MQ.c.subscribe([MQT+'rooms/+',MQT+'rooms/+/ctl',MQT+'admin/revoked']);mqSubMe();pubMe();if(isMaster())MQ.c.subscribe(MQT+'players/+');lobbyDraw()});
+ MQ.c.on('connect',()=>{MQ.ok=true;MQ.c.subscribe([MQT+'rooms/+',MQT+'rooms/+/ctl',MQT+'admin/revoked',MQT+'minver']);mqSubMe();pubMe();if(isMaster())MQ.c.subscribe(MQT+'players/+');lobbyDraw()});
  MQ.c.on('close',()=>{MQ.ok=false;lobbyDraw()});
- MQ.c.on('message',(t,m)=>{if(t===MQT+'admin/revoked')return onRevoked(m.toString());if(t.startsWith(MQT+'cmd/'))return onCmds(m.toString());if(t.startsWith(MQT+'players/')){try{const d=JSON.parse(m.toString());if(d&&d.pid)MQ.players[d.pid]=d}catch(e){}if(PAGE==='admin'&&window.plDraw)plDraw();return}const parts=t.split('/'),id=parts[3],ctl=parts[4]==='ctl';let d=null;const s=m.toString();if(s)try{d=JSON.parse(s)}catch(e){return}
+ MQ.c.on('message',(t,m)=>{if(t===MQT+'admin/revoked')return onRevoked(m.toString());if(t===MQT+'minver')return onMinVer(m.toString());if(t.startsWith(MQT+'cmd/'))return onCmds(m.toString());if(t.startsWith(MQT+'players/')){try{const d=JSON.parse(m.toString());if(d&&d.pid)MQ.players[d.pid]=d}catch(e){}if(PAGE==='admin'&&window.plDraw)plDraw();return}const parts=t.split('/'),id=parts[3],ctl=parts[4]==='ctl';let d=null;const s=m.toString();if(s)try{d=JSON.parse(s)}catch(e){return}
   if(ctl)return onCtl(id,d);
   if(!d){delete MQ.rooms[id]}else MQ.rooms[id]=d;
   if(MQ.room&&MQ.room.id===id)onMyRoom(d);
@@ -1183,7 +1188,7 @@ async function admKey(txt){const raw=Uint8Array.from(atob(txt.replace(/^CBADMIN-
 function devPid(){let d='';try{d=localStorage.getItem('cb_pid')||''}catch(e){}if(!d){d='P'+Math.random().toString(36).slice(2,10).toUpperCase();try{localStorage.setItem('cb_pid',d)}catch(e){}}return d}
 function pid(){if(S.steam)return S.steam;if(!S.pid){S.pid=devPid();save()}return S.pid}
 var PUBT=null;function pubMe(){clearTimeout(PUBT);PUBT=setTimeout(()=>{if(!MQ.c||!MQ.ok||!S.reg)return;
- MQ.c.publish(MQT+'players/'+pid(),JSON.stringify({ban:!!banInfo(),pid:pid(),n:S.nick,b:Math.floor(S.bal),iv:Math.floor(invSum()),s:!!S.steam,t:Date.now()}),{retain:true,qos:0})},3000)}
+ MQ.c.publish(MQT+'players/'+pid(),JSON.stringify({ban:banInfo()?(banInfo().u||true):false,v:APP_VER,pid:pid(),n:S.nick,b:Math.floor(S.bal),iv:Math.floor(invSum()),s:!!S.steam,t:Date.now()}),{retain:true,qos:0})},3000)}
 let ADMROLE='',ADMGRANT='',ADMGID='',ADMLIM=0;
 const isAdmin=()=>!!ADMK;const isMaster=()=>ADMROLE==='master';
 const dec=b=>new TextDecoder().decode(b);
@@ -1233,17 +1238,25 @@ async function onCmds(s){let o;try{o=JSON.parse(s)}catch(e){return}if(!o||!Array
   else if(c.op==='zero'){S.bal=0;if(c.inv)S.inv=[];toast('Администратор обнулил баланс'+(c.inv?' и инвентарь':''),'bad')}
   else if(c.op==='give'){S.bal+=c.a;toast('Администратор начислил '+fmt(c.a),'good');bigS()}}
  const bs=list.filter(c=>c.op==='ban'||c.op==='unban').pop();
- if(bs){if(bs.op==='ban'){const was=S.ban&&S.ban.d===bs.d;S.ban={r:bs.r||'',d:bs.d};try{localStorage.setItem('cb_dban',JSON.stringify({pid:pid(),r:bs.r||'',d:bs.d}))}catch(e){}changed=changed||!was;showBan()}
+ if(bs){if(bs.op==='ban'){if(bs.u&&Date.now()>bs.u){if(S.ban&&S.ban.d===bs.d){S.ban=null;try{localStorage.removeItem('cb_dban')}catch(e){}hideBan();changed=true}}else{const was=S.ban&&S.ban.d===bs.d;S.ban={r:bs.r||'',d:bs.d,u:bs.u||0};try{localStorage.setItem('cb_dban',JSON.stringify({pid:pid(),r:bs.r||'',d:bs.d,u:bs.u||0}))}catch(e){}changed=changed||!was;showBan()}}
   else{if(S.ban||localStorage.getItem('cb_dban')){S.ban=null;try{localStorage.removeItem('cb_dban')}catch(e){}changed=true;hideBan();toast('Вас разблокировали','good')}}}
  if(changed){save();bump();if(PAGE==='profile')pageProfile()}}
-function banInfo(){if(S.ban)return S.ban;try{const d=JSON.parse(localStorage.getItem('cb_dban')||'null');if(d)return d}catch(e){}return null}
+async function onMinVer(s){try{const o=JSON.parse(s);if(!await crypto.subtle.verify(ECP,await pubKey(),ub64u(o.sig),enc(String(o.v))))return;if(APP_VER<o.v&&!isMaster())showUpdate(o.v)}catch(e){}}
+function showUpdate(v){let el=$('#updscr');if(!el){el=document.createElement('div');el.id='updscr';document.body.append(el)}busy=true;closeModal();
+ el.innerHTML=`<div class="banbox"><div class="banic" style="filter:drop-shadow(0 0 20px var(--acc))"><svg viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="#ffb02e" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></div><h1>Нужно обновление</h1><p class="mut">Эта версия игры больше не поддерживается. Установи новую — прогресс сохранится.</p>
+ ${window.Android?`<a class="btn big" style="display:inline-block;text-decoration:none;margin-top:10px" href="https://github.com/belovsasa60337-ctrl/casebattle-app/releases/latest/download/CaseBattle.apk">Скачать новую версию</a>`:`<button class="btn big" style="margin-top:10px" onclick="location.reload()">Обновить</button>`}<div class="mut" style="font-size:12px;margin-top:12px">Версия ${APP_VER} → ${v}</div></div>`}
+async function setMinVer(v){if(!isMaster())return;await mqConnect();if(!MQ.c||!MQ.ok)return toast('Нет связи с сервером','bad');const sig=b64u(await crypto.subtle.sign(ECP,ADMK,enc(String(v))));MQ.c.publish(MQT+'minver',JSON.stringify({v,sig}),{retain:true,qos:1});toast('Все версии ниже '+v+' должны обновиться','good')}
+function banInfo(){let b=S.ban;if(!b)try{b=JSON.parse(localStorage.getItem('cb_dban')||'null')}catch(e){}if(b&&b.u&&Date.now()>b.u){S.ban=null;try{localStorage.removeItem('cb_dban')}catch(e){}return null}return b||null}
 function showBan(){const b=banInfo();if(!b)return;let el=$('#banscr');if(!el){el=document.createElement('div');el.id='banscr';document.body.append(el)}
  busy=true;closeModal();el.innerHTML=`<div class="banbox"><div class="banic"><svg viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="#ff4d5e" stroke-width="2.2"><circle cx="12" cy="12" r="9.5"/><path d="M5.5 5.5l13 13"/></svg></div><h1>Вы заблокированы</h1><p class="mut">Администратор ограничил доступ к игре.</p>${b.r?`<div class="banr">Причина: <b>${esc(b.r)}</b></div>`:''}
  <div class="mut" style="font-size:13px;margin-top:14px">Твой ID: <b style="color:var(--txt);user-select:all;-webkit-user-select:all">${pid()}</b></div><button class="btn ghost sm" id="bancp" style="margin-top:10px">Скопировать ID</button>
- <div class="mut" style="font-size:12px;margin-top:14px">${new Date(b.d).toLocaleString('ru-RU')}</div></div>`;$('#bancp').onclick=()=>copyText(pid(),'ID скопирован')}
+ <div class="banu" id="banu">${b.u?'':'Бан навсегда'}</div><div class="mut" style="font-size:12px;margin-top:8px">Выдан ${new Date(b.d).toLocaleString('ru-RU')}</div></div>`;$('#bancp').onclick=()=>copyText(pid(),'ID скопирован');
+ clearInterval(window.BANT);if(b.u){const tick=()=>{const left=b.u-Date.now();if(left<=0){clearInterval(window.BANT);S.ban=null;try{localStorage.removeItem('cb_dban')}catch(e){}save();hideBan();toast('Бан закончился','good');return}
+  const d=Math.floor(left/864e5),h=Math.floor(left%864e5/36e5),m=Math.floor(left%36e5/6e4),sec=Math.floor(left%6e4/1e3);
+  const u=$('#banu');if(u)u.innerHTML=`До разбана: <b>${d?d+' д ':''}${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}</b><br><span class="mut" style="font-size:12px">${new Date(b.u).toLocaleString('ru-RU')}</span>`};tick();window.BANT=setInterval(tick,1000)}}
 function hideBan(){const el=$('#banscr');if(el)el.remove();busy=false}
-async function sendCmd(to,op,a,inv,r){if(!isMaster())return;await mqConnect();if(!MQ.c||!MQ.ok)return toast('Нет связи с сервером, попробуй позже','bad');
- const p={p:to,op,a:Math.floor(a||0),inv:!!inv,r:r?String(r).slice(0,120):undefined,n:'c'+Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
+async function sendCmd(to,op,a,inv,r,u){if(!isMaster())return;await mqConnect();if(!MQ.c||!MQ.ok)return toast('Нет связи с сервером, попробуй позже','bad');
+ const p={p:to,op,a:Math.floor(a||0),inv:!!inv,r:r?String(r).slice(0,120):undefined,u:u||undefined,n:'c'+Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
  const str=data+'.'+b64u(await crypto.subtle.sign(ECP,ADMK,enc(data)))+(ADMROLE==='sub'?'.'+ADMGRANT:'');
  const all=JSON.parse(localStorage.getItem('cb_cmds')||'{}');const L=(all[to]||[]).concat(str).slice(-20);all[to]=L;localStorage.setItem('cb_cmds',JSON.stringify(all));
  MQ.c.publish(MQT+'cmd/'+to,JSON.stringify({cmds:L}),{retain:true,qos:1});
@@ -1282,7 +1295,7 @@ function pageAdmin(){if(!isAdmin())return go('cases');
    const q=($('#plq').value||'').toLowerCase(),so=$('#pls').value;let arr=Object.values(MQ.players).filter(p=>so!=='ban'||p.ban).filter(p=>!q||String(p.n).toLowerCase().includes(q)||String(p.pid).toLowerCase().includes(q));
    arr.sort(so==='b'?(a,b)=>b.b-a.b:so==='iv'?(a,b)=>(b.iv||0)-(a.iv||0):so==='n'?(a,b)=>String(a.n).localeCompare(String(b.n)):(a,b)=>b.t-a.t);
    $('#pllist').innerHTML=arr.slice(0,300).map(p=>{const on=Date.now()-p.t<120000;return`<div class="plc" data-pid="${esc(p.pid)}"><div class="av" style="background:${p.s?'#1b2838':'#2a2f45'}">${initial(p.n)}${on?'<i class="ondot"></i>':''}</div>
-    <div class="plm"><b>${p.ban?'<span class="bantag">БАН</span> ':''}${esc(p.n)}${p.pid===pid()?' <span class="mut">(вы)</span>':''}</b><span class="mut">${p.s?'Steam':'Гость'} · ${ago(p.t)}</span></div><div class="plv"><b>${big(p.b)} ₽</b><span class="mut">скины ${big(p.iv||0)} ₽</span></div></div>`}).join('')
+    <div class="plm"><b>${p.ban?`<span class="bantag">БАН${p.ban!==true&&p.ban>Date.now()?' до '+new Date(p.ban).toLocaleDateString('ru-RU'):''}</span> `:''}${!p.v?'<span class="oldtag">старая версия</span> ':''}${esc(p.n)}${p.pid===pid()?' <span class="mut">(вы)</span>':''}</b><span class="mut">${p.s?'Steam':'Гость'} · ${ago(p.t)}</span></div><div class="plv"><b>${big(p.b)} ₽</b><span class="mut">скины ${big(p.iv||0)} ₽</span></div></div>`}).join('')
     ||`<div class="empty" style="grid-column:1/-1">${MQ.ok?'Игроков пока не видно. Они появятся, когда зайдут в игру с интернетом.':'Подключение к серверу…'}</div>`;
    $$('#pllist .plc').forEach(e=>e.onclick=()=>playerCard(e.dataset.pid))};
   $('#plq').oninput=plDraw;$('#pls').onchange=plDraw;plDraw()}
@@ -1316,22 +1329,24 @@ function pageAdmin(){if(!isAdmin())return go('cases');
    <div class="field"><label>Начислить себе</label><div class="row"><input id="aself" type="number" value="1000000" style="flex:1"><button class="btn green" id="aselfb">Начислить</button></div><div class="qb" style="margin-top:6px">${[1e6,1e7,1e8,1e9].map(v=>`<button data-s="${v}">+${big(v)}</button>`).join('')}</div></div>
    <div class="field"><label>Точный баланс</label><div class="row"><input id="aset" type="number" placeholder="Например 0" style="flex:1"><button class="btn ghost" id="asetb">Установить</button></div></div></div>
    <div class="panel"><h3 style="margin:0 0 12px">Устройство</h3><div class="mut" style="font-size:13px">Твой ID: <b style="color:var(--txt);user-select:all">${pid()}</b></div><div class="mut" style="font-size:12px;margin:8px 0 14px">${OWNER_IDS.length?'Главный ключ привязан к аккаунтам владельца.':'Главный ключ пока не привязан к аккаунту.'}</div>
-   <button class="btn ghost" id="aexit" style="color:var(--bad);width:100%">Выйти из админки на этом устройстве</button></div></div>`;
+   <div class="mut" style="font-size:12px;margin-bottom:8px">Версия игры: <b style="color:var(--txt)">${APP_VER}</b></div><button class="btn" id="aforce" style="width:100%;margin-bottom:10px">Заставить всех обновиться до версии ${APP_VER}</button><button class="btn ghost" id="aexit" style="color:var(--bad);width:100%">Выйти из админки на этом устройстве</button></div></div>`;
   $$('[data-s]').forEach(b=>b.onclick=()=>{S.bal+=+b.dataset.s;save();bump();toast('+'+fmt(+b.dataset.s),'good');pageAdmin()});
   $('#aselfb').onclick=()=>{const v=Math.floor(+$('#aself').value);if(v){S.bal+=v;save();bump();toast('+'+fmt(v),'good');pageAdmin()}};
   $('#asetb').onclick=()=>{const v=Math.floor(+$('#aset').value);if(v>=0){S.bal=v;save();bump();toast('Баланс: '+fmt(v),'good');pageAdmin()}};
+  $('#aforce').onclick=()=>setMinVer(APP_VER);
   $('#aexit').onclick=()=>{localStorage.removeItem('cb_admin');ADMK=null;ADMROLE='';updAdminNav();go('cases')}}}
 function playerCard(id){const p=MQ.players[id];if(!p)return;
  openModal(`<div class="row" style="justify-content:space-between;align-items:flex-start"><div class="row"><div class="av" style="width:54px;height:54px;font-size:26px;border-radius:16px;background:${p.s?'#1b2838':'#2a2f45'}">${initial(p.n)}</div><div><h2 style="margin:0">${esc(p.n)}</h2><div class="mut" style="font-size:12px;user-select:all">${esc(p.pid)}</div><div class="mut" style="font-size:12px">${p.s?'Steam':'Гость'} · ${new Date(p.t).toLocaleString('ru-RU')}</div></div></div><button class="btn sm ghost" onclick="closeModal()">Закрыть</button></div>
  <div class="stats" style="grid-template-columns:1fr 1fr"><div class="stat"><span>Баланс</span><b style="color:var(--acc)">${fmt(p.b)}</b></div><div class="stat"><span>Скины</span><b>${fmt(p.iv||0)}</b></div></div>
  <div class="field" style="margin-top:14px"><label>Сумма</label><input id="pcam" type="number" value="100000"><div class="qb">${[1e4,1e5,1e6,1e7,1e8].map(v=>`<button data-v="${v}">${big(v)}</button>`).join('')}</div></div>
  <div class="pcact"><button class="btn green" data-op="give">Начислить</button><button class="btn red" data-op="take">Забрать</button><button class="btn ghost" data-op="zero">Обнулить баланс</button><button class="btn ghost" data-op="inv">Забрать все скины</button><button class="btn ghost" data-op="code">Создать код</button><button class="btn ghost" data-op="copy">Копировать ID</button></div>
- <div class="banrow">${p.ban?'<button class="btn green" data-op="unban" style="width:100%">Разбанить</button>':'<input id="pcbr" placeholder="Причина бана (необязательно)"><button class="btn red" data-op="ban">Забанить</button>'}</div>
+ <div class="banrow">${p.ban?'<button class="btn green" data-op="unban" style="width:100%">Разбанить</button>':'<input id="pcbr" placeholder="Причина (необязательно)"><select id="pcbt"><option value="3600000">1 час</option><option value="86400000">1 день</option><option value="259200000">3 дня</option><option value="604800000">7 дней</option><option value="2592000000">30 дней</option><option value="0" selected>Навсегда</option></select><button class="btn red" data-op="ban">Забанить</button>'}</div>
  <div class="mut" style="font-size:12px;margin-top:10px">Списание и начисление срабатывают сразу, если игрок онлайн, иначе при его следующем входе.</div><div id="pcout"></div>`);
  $$('#mbody .qb [data-v]').forEach(b=>b.onclick=()=>$('#pcam').value=b.dataset.v);
  $$('#mbody [data-op]').forEach(b=>b.onclick=async()=>{const op=b.dataset.op,a=Math.floor(+$('#pcam').value);
   if(op==='copy')return copyText(id,'ID скопирован');
-  if(op==='ban'||op==='unban'){if(id===pid())return toast('Себя банить нельзя','bad');if(await sendCmd(id,op,0,false,op==='ban'?($('#pcbr').value||'').trim():'')){p.ban=op==='ban';toast(op==='ban'?'Игрок забанен':'Игрок разбанен','good');closeModal();plDraw&&plDraw()}return}
+  if(op==='ban'||op==='unban'){if(id===pid())return toast('Себя банить нельзя','bad');const dur=op==='ban'?+$('#pcbt').value:0,until=dur?Date.now()+dur:0;const old=!p.v;
+   if(await sendCmd(id,op,0,false,op==='ban'?($('#pcbr').value||'').trim():'',until)){p.ban=op==='ban'?(until||true):false;toast(op==='ban'?(old?'Бан отправлен. Если у игрока версия ниже v30, бан сработает только после обновления':'Игрок забанен'+(until?' до '+new Date(until).toLocaleString('ru-RU'):' навсегда')):'Игрок разбанен','good');closeModal();plDraw&&plDraw()}return}
   if(op==='code'){if(!(a>0))return toast('Укажи сумму','bad');const code=await makeCode(a,id);const h=JSON.parse(localStorage.getItem('cb_codes')||'[]');h.unshift({a,t:id,c:code,d:Date.now()});localStorage.setItem('cb_codes',JSON.stringify(h.slice(0,100)));$('#pcout').innerHTML=`<textarea readonly rows="3" style="width:100%;margin-top:10px;font-size:11px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:8px">${code}</textarea>`;return copyText(code,'Код скопирован')}
   if((op==='give'||op==='take')&&!(a>0))return toast('Укажи сумму','bad');
   if(op==='inv'){if(await sendCmd(id,'take',0,true))toast('Скины будут забраны','good');return}
