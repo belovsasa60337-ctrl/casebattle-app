@@ -363,6 +363,12 @@ body{-webkit-text-size-adjust:100%;}
 .plv{text-align:right;display:flex;flex-direction:column;font-size:14px}.plv b{color:var(--acc)}.plv span{font-size:11px}
 .pcact{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .limbar{height:10px;border-radius:6px;background:var(--bg3);overflow:hidden;margin-top:10px}.limbar i{display:block;height:100%;background:linear-gradient(90deg,var(--good),var(--acc),var(--bad))}
+#banscr{position:fixed;inset:0;z-index:200;background:radial-gradient(600px 400px at 50% 30%,#ff4d5e22,transparent),#07080dF5;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.banbox{text-align:center;max-width:380px}.banbox h1{font-size:28px;font-weight:900;margin:8px 0 6px}
+.banic{filter:drop-shadow(0 0 20px #ff4d5e)}
+.banr{margin-top:12px;background:#ff4d5e1a;border:1px solid #ff4d5e55;border-radius:12px;padding:10px 14px}
+.bantag{background:var(--bad);color:#fff;font-size:10px;padding:1px 6px;border-radius:6px;vertical-align:middle}
+.banrow{display:flex;gap:8px;margin-top:12px}.banrow input{flex:1;min-width:0}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .chip{padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;background:var(--bg3)}
 .chip.g{color:var(--good)}.chip.r{color:var(--bad)}.chip.y{color:var(--acc)}
@@ -1177,7 +1183,7 @@ async function admKey(txt){const raw=Uint8Array.from(atob(txt.replace(/^CBADMIN-
 function devPid(){let d='';try{d=localStorage.getItem('cb_pid')||''}catch(e){}if(!d){d='P'+Math.random().toString(36).slice(2,10).toUpperCase();try{localStorage.setItem('cb_pid',d)}catch(e){}}return d}
 function pid(){if(S.steam)return S.steam;if(!S.pid){S.pid=devPid();save()}return S.pid}
 var PUBT=null;function pubMe(){clearTimeout(PUBT);PUBT=setTimeout(()=>{if(!MQ.c||!MQ.ok||!S.reg)return;
- MQ.c.publish(MQT+'players/'+pid(),JSON.stringify({pid:pid(),n:S.nick,b:Math.floor(S.bal),iv:Math.floor(invSum()),s:!!S.steam,t:Date.now()}),{retain:true,qos:0})},3000)}
+ MQ.c.publish(MQT+'players/'+pid(),JSON.stringify({ban:!!banInfo(),pid:pid(),n:S.nick,b:Math.floor(S.bal),iv:Math.floor(invSum()),s:!!S.steam,t:Date.now()}),{retain:true,qos:0})},3000)}
 let ADMROLE='',ADMGRANT='',ADMGID='',ADMLIM=0;
 const isAdmin=()=>!!ADMK;const isMaster=()=>ADMROLE==='master';
 const dec=b=>new TextDecoder().decode(b);
@@ -1219,14 +1225,25 @@ function mqSubMe(){if(!MQ.c||!MQ.ok)return;const t=MQT+'cmd/'+pid();if(MQ_MYSUB&
 async function verifyCmd(str){const m=String(str).match(/^([\w-]+)\.([\w-]+)(?:\.([\w-]+~[\w-]+))?$/);if(!m)return null;
  let key=await pubKey();if(m[3]){const g=await checkGrant(m[3]);if(!g||REVOKED.includes(g.g))return null;key=await crypto.subtle.importKey('jwk',{kty:'EC',crv:'P-256',x:g.x,y:g.y,ext:true},{name:'ECDSA',namedCurve:'P-256'},false,['verify'])}
  if(!await crypto.subtle.verify(ECP,key,ub64u(m[2]),enc(m[1])))return null;return JSON.parse(dec(ub64u(m[1])))}
-async function onCmds(s){let o;try{o=JSON.parse(s)}catch(e){return}if(!o||!Array.isArray(o.cmds))return;S.used=S.used||[];
- for(const str of o.cmds){let c;try{c=await verifyCmd(str)}catch(e){c=null}if(!c||c.p!==pid()||S.used.includes(c.n))continue;S.used.push(c.n);
+async function onCmds(s){let o;try{o=JSON.parse(s)}catch(e){return}if(!o||!Array.isArray(o.cmds))return;S.used=S.used||[];S.created=S.created||Date.now();
+ const list=[];for(const str of o.cmds){let c;try{c=await verifyCmd(str)}catch(e){c=null}if(c&&c.p===pid())list.push(c)}list.sort((a,b)=>a.d-b.d);
+ let changed=false;
+ for(const c of list){if(c.op==='ban'||c.op==='unban'||S.used.includes(c.n)||c.d<S.created-60000)continue;S.used.push(c.n);changed=true;
   if(c.op==='take'){const t=Math.min(S.bal,c.a);S.bal-=t;let msg='Администратор забрал '+fmt(t);if(c.inv&&S.inv.length){S.inv=[];msg+=' и все скины'}toast(msg,'bad')}
   else if(c.op==='zero'){S.bal=0;if(c.inv)S.inv=[];toast('Администратор обнулил баланс'+(c.inv?' и инвентарь':''),'bad')}
-  else if(c.op==='give'){S.bal+=c.a;toast('Администратор начислил '+fmt(c.a),'good');bigS()}
-  save();bump();if(PAGE==='profile')pageProfile()}}
-async function sendCmd(to,op,a,inv){if(!isMaster())return;await mqConnect();if(!MQ.c||!MQ.ok)return toast('Нет связи с сервером, попробуй позже','bad');
- const p={p:to,op,a:Math.floor(a||0),inv:!!inv,n:'c'+Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
+  else if(c.op==='give'){S.bal+=c.a;toast('Администратор начислил '+fmt(c.a),'good');bigS()}}
+ const bs=list.filter(c=>c.op==='ban'||c.op==='unban').pop();
+ if(bs){if(bs.op==='ban'){const was=S.ban&&S.ban.d===bs.d;S.ban={r:bs.r||'',d:bs.d};try{localStorage.setItem('cb_dban',JSON.stringify({pid:pid(),r:bs.r||'',d:bs.d}))}catch(e){}changed=changed||!was;showBan()}
+  else{if(S.ban||localStorage.getItem('cb_dban')){S.ban=null;try{localStorage.removeItem('cb_dban')}catch(e){}changed=true;hideBan();toast('Вас разблокировали','good')}}}
+ if(changed){save();bump();if(PAGE==='profile')pageProfile()}}
+function banInfo(){if(S.ban)return S.ban;try{const d=JSON.parse(localStorage.getItem('cb_dban')||'null');if(d)return d}catch(e){}return null}
+function showBan(){const b=banInfo();if(!b)return;let el=$('#banscr');if(!el){el=document.createElement('div');el.id='banscr';document.body.append(el)}
+ busy=true;closeModal();el.innerHTML=`<div class="banbox"><div class="banic"><svg viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="#ff4d5e" stroke-width="2.2"><circle cx="12" cy="12" r="9.5"/><path d="M5.5 5.5l13 13"/></svg></div><h1>Вы заблокированы</h1><p class="mut">Администратор ограничил доступ к игре.</p>${b.r?`<div class="banr">Причина: <b>${esc(b.r)}</b></div>`:''}
+ <div class="mut" style="font-size:13px;margin-top:14px">Твой ID: <b style="color:var(--txt);user-select:all;-webkit-user-select:all">${pid()}</b></div><button class="btn ghost sm" id="bancp" style="margin-top:10px">Скопировать ID</button>
+ <div class="mut" style="font-size:12px;margin-top:14px">${new Date(b.d).toLocaleString('ru-RU')}</div></div>`;$('#bancp').onclick=()=>copyText(pid(),'ID скопирован')}
+function hideBan(){const el=$('#banscr');if(el)el.remove();busy=false}
+async function sendCmd(to,op,a,inv,r){if(!isMaster())return;await mqConnect();if(!MQ.c||!MQ.ok)return toast('Нет связи с сервером, попробуй позже','bad');
+ const p={p:to,op,a:Math.floor(a||0),inv:!!inv,r:r?String(r).slice(0,120):undefined,n:'c'+Math.random().toString(36).slice(2,10),d:Date.now()};const data=b64u(enc(JSON.stringify(p)));
  const str=data+'.'+b64u(await crypto.subtle.sign(ECP,ADMK,enc(data)))+(ADMROLE==='sub'?'.'+ADMGRANT:'');
  const all=JSON.parse(localStorage.getItem('cb_cmds')||'{}');const L=(all[to]||[]).concat(str).slice(-20);all[to]=L;localStorage.setItem('cb_cmds',JSON.stringify(all));
  MQ.c.publish(MQT+'cmd/'+to,JSON.stringify({cmds:L}),{retain:true,qos:1});
@@ -1259,13 +1276,13 @@ function pageAdmin(){if(!isAdmin())return go('cases');
  stats();
  const B=$('#admbody');
  if(ADM_TAB==='players'){
-  B.innerHTML=`<div class="toolbar"><input id="plq" placeholder="Поиск по нику или ID"><select id="pls"><option value="t">Недавно в игре</option><option value="b">Богатые</option><option value="iv">Дорогие инвентари</option><option value="n">По нику</option></select></div><div class="plgrid" id="pllist"></div>`;
+  B.innerHTML=`<div class="toolbar"><input id="plq" placeholder="Поиск по нику или ID"><select id="pls"><option value="t">Недавно в игре</option><option value="b">Богатые</option><option value="iv">Дорогие инвентари</option><option value="n">По нику</option><option value="ban">Забаненные</option></select></div><div class="plgrid" id="pllist"></div>`;
   const ago=t=>{const m=Math.floor((Date.now()-t)/60000);return m<2?'онлайн':m<60?m+' мин назад':m<1440?Math.floor(m/60)+' ч назад':Math.floor(m/1440)+' дн назад'};
   window.plDraw=()=>{if(ADM_TAB!=='players'||!$('#pllist'))return;stats();try{localStorage.setItem('cb_players',JSON.stringify(MQ.players))}catch(e){}
-   const q=($('#plq').value||'').toLowerCase(),so=$('#pls').value;let arr=Object.values(MQ.players).filter(p=>!q||String(p.n).toLowerCase().includes(q)||String(p.pid).toLowerCase().includes(q));
+   const q=($('#plq').value||'').toLowerCase(),so=$('#pls').value;let arr=Object.values(MQ.players).filter(p=>so!=='ban'||p.ban).filter(p=>!q||String(p.n).toLowerCase().includes(q)||String(p.pid).toLowerCase().includes(q));
    arr.sort(so==='b'?(a,b)=>b.b-a.b:so==='iv'?(a,b)=>(b.iv||0)-(a.iv||0):so==='n'?(a,b)=>String(a.n).localeCompare(String(b.n)):(a,b)=>b.t-a.t);
    $('#pllist').innerHTML=arr.slice(0,300).map(p=>{const on=Date.now()-p.t<120000;return`<div class="plc" data-pid="${esc(p.pid)}"><div class="av" style="background:${p.s?'#1b2838':'#2a2f45'}">${initial(p.n)}${on?'<i class="ondot"></i>':''}</div>
-    <div class="plm"><b>${esc(p.n)}${p.pid===pid()?' <span class="mut">(вы)</span>':''}</b><span class="mut">${p.s?'Steam':'Гость'} · ${ago(p.t)}</span></div><div class="plv"><b>${big(p.b)} ₽</b><span class="mut">скины ${big(p.iv||0)} ₽</span></div></div>`}).join('')
+    <div class="plm"><b>${p.ban?'<span class="bantag">БАН</span> ':''}${esc(p.n)}${p.pid===pid()?' <span class="mut">(вы)</span>':''}</b><span class="mut">${p.s?'Steam':'Гость'} · ${ago(p.t)}</span></div><div class="plv"><b>${big(p.b)} ₽</b><span class="mut">скины ${big(p.iv||0)} ₽</span></div></div>`}).join('')
     ||`<div class="empty" style="grid-column:1/-1">${MQ.ok?'Игроков пока не видно. Они появятся, когда зайдут в игру с интернетом.':'Подключение к серверу…'}</div>`;
    $$('#pllist .plc').forEach(e=>e.onclick=()=>playerCard(e.dataset.pid))};
   $('#plq').oninput=plDraw;$('#pls').onchange=plDraw;plDraw()}
@@ -1309,10 +1326,12 @@ function playerCard(id){const p=MQ.players[id];if(!p)return;
  <div class="stats" style="grid-template-columns:1fr 1fr"><div class="stat"><span>Баланс</span><b style="color:var(--acc)">${fmt(p.b)}</b></div><div class="stat"><span>Скины</span><b>${fmt(p.iv||0)}</b></div></div>
  <div class="field" style="margin-top:14px"><label>Сумма</label><input id="pcam" type="number" value="100000"><div class="qb">${[1e4,1e5,1e6,1e7,1e8].map(v=>`<button data-v="${v}">${big(v)}</button>`).join('')}</div></div>
  <div class="pcact"><button class="btn green" data-op="give">Начислить</button><button class="btn red" data-op="take">Забрать</button><button class="btn ghost" data-op="zero">Обнулить баланс</button><button class="btn ghost" data-op="inv">Забрать все скины</button><button class="btn ghost" data-op="code">Создать код</button><button class="btn ghost" data-op="copy">Копировать ID</button></div>
+ <div class="banrow">${p.ban?'<button class="btn green" data-op="unban" style="width:100%">Разбанить</button>':'<input id="pcbr" placeholder="Причина бана (необязательно)"><button class="btn red" data-op="ban">Забанить</button>'}</div>
  <div class="mut" style="font-size:12px;margin-top:10px">Списание и начисление срабатывают сразу, если игрок онлайн, иначе при его следующем входе.</div><div id="pcout"></div>`);
  $$('#mbody .qb [data-v]').forEach(b=>b.onclick=()=>$('#pcam').value=b.dataset.v);
- $$('.pcact [data-op]').forEach(b=>b.onclick=async()=>{const op=b.dataset.op,a=Math.floor(+$('#pcam').value);
+ $$('#mbody [data-op]').forEach(b=>b.onclick=async()=>{const op=b.dataset.op,a=Math.floor(+$('#pcam').value);
   if(op==='copy')return copyText(id,'ID скопирован');
+  if(op==='ban'||op==='unban'){if(id===pid())return toast('Себя банить нельзя','bad');if(await sendCmd(id,op,0,false,op==='ban'?($('#pcbr').value||'').trim():'')){p.ban=op==='ban';toast(op==='ban'?'Игрок забанен':'Игрок разбанен','good');closeModal();plDraw&&plDraw()}return}
   if(op==='code'){if(!(a>0))return toast('Укажи сумму','bad');const code=await makeCode(a,id);const h=JSON.parse(localStorage.getItem('cb_codes')||'[]');h.unshift({a,t:id,c:code,d:Date.now()});localStorage.setItem('cb_codes',JSON.stringify(h.slice(0,100)));$('#pcout').innerHTML=`<textarea readonly rows="3" style="width:100%;margin-top:10px;font-size:11px;color:var(--txt);background:var(--bg3);border:1px solid var(--acc);border-radius:10px;padding:8px">${code}</textarea>`;return copyText(code,'Код скопирован')}
   if((op==='give'||op==='take')&&!(a>0))return toast('Укажи сумму','bad');
   if(op==='inv'){if(await sendCmd(id,'take',0,true))toast('Скины будут забраны','good');return}
@@ -1339,7 +1358,7 @@ function pageSubAdmin(){const L=subLimitInfo();
  else{DB=await loadRemote();if(DB){try{localStorage.setItem(DBKEY,JSON.stringify(DB))}catch(e){}}
   else{$('#ltxt').innerHTML='Не удалось загрузить базу CS2 (нужен интернет / GitHub).<br><br><button class="btn" onclick="location.reload()">Повторить</button> <button class="btn ghost" id="demoDB">Демо-режим</button>';
    await new Promise(r=>$('#demoDB').onclick=r);DB=fallbackDB()}}
- $('#ltxt').textContent='Загружаю цены Steam…';await loadPrices();prepDB();loadAdmin();setTimeout(()=>mqConnect(),1500);$('#loader').remove();go('cases');if(!S.reg)regModal();
+ $('#ltxt').textContent='Загружаю цены Steam…';await loadPrices();prepDB();loadAdmin();S.created=S.created||Date.now();if(banInfo()&&!isMaster())setTimeout(showBan,300);setTimeout(()=>mqConnect(),1500);$('#loader').remove();go('cases');if(!S.reg)regModal();
  for(let i=0;i<14;i++){const c=rnd(DB.all);pushTicker(rollCase(c,true),rnd(BOTS))}
  setInterval(()=>{if(document.hidden)return;const c=rnd(DB.all);pushTicker(rollCase(c,true),rnd(BOTS))},2200);
 })();
